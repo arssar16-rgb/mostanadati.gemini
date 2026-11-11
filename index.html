@@ -3,51 +3,48 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>مستنداتي | خزانة المستندات الشخصية</title>
+  <title>مستنداتي | خزانة المستندات الشخصية والوظيفية</title>
   
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="مستنداتي">
   <meta name="theme-color" content="#070c18">
   
-  <!-- خط IBM Plex Sans Arabic -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 
   <style>
-    /* الوضع الليلي الكحلي الافتراضي */
     :root {
       --bg: #070c18;
-      --card-bg: #0f172a;
-      --card-border: #1e293b;
+      --card-bg: rgba(15, 23, 42, 0.75);
+      --card-border: rgba(30, 41, 59, 0.8);
       --primary: #1e3a8a;
-      --primary-active: #0284c7;
       --accent: #38bdf8;
       --text-main: #f8fafc;
       --text-muted: #94a3b8;
-      --input-bg: #0b1329;
+      --input-bg: rgba(11, 19, 41, 0.85);
       --preview-bg: #060a12;
-      --danger: #ef4444;
       --success: #10b981;
-      --header-bg: rgba(15, 23, 42, 0.9);
+      --warning: #f59e0b;
+      --header-bg: rgba(15, 23, 42, 0.85);
+      --drawer-bg: #0b1329;
     }
 
-    /* الوضع النهاري */
     body.light-mode {
       --bg: #f8fafc;
-      --card-bg: #ffffff;
-      --card-border: #e2e8f0;
+      --card-bg: rgba(255, 255, 255, 0.85);
+      --card-border: rgba(226, 232, 240, 0.9);
       --primary: #0284c7;
-      --primary-active: #0369a1;
       --accent: #0284c7;
       --text-main: #0f172a;
       --text-muted: #64748b;
-      --input-bg: #ffffff;
-      --preview-bg: #f1f5f9;
-      --danger: #ef4444;
+      --input-bg: rgba(241, 245, 249, 0.9);
+      --preview-bg: #e2e8f0;
       --success: #059669;
-      --header-bg: rgba(255, 255, 255, 0.9);
+      --warning: #d97706;
+      --header-bg: rgba(255, 255, 255, 0.85);
+      --drawer-bg: #ffffff;
     }
 
     * {
@@ -68,16 +65,15 @@
       padding-bottom: 40px;
     }
 
-    /* الشريط العلوي */
     header {
       background: var(--header-bg);
-      backdrop-filter: blur(12px);
-      -webkit-backdrop-filter: blur(12px);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
       border-bottom: 1px solid var(--card-border);
       position: sticky;
       top: 0;
       z-index: 50;
-      padding: 14px 18px;
+      padding: 14px 20px;
       display: flex;
       justify-content: space-between;
       align-items: center;
@@ -86,30 +82,27 @@
     .brand {
       display: flex;
       align-items: center;
-      gap: 10px;
+      gap: 12px;
     }
 
-    .brand-icon {
-      width: 38px;
-      height: 38px;
-      border-radius: 10px;
-      background: linear-gradient(135deg, #1e3a8a, #0284c7);
+    .menu-trigger-btn {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      color: var(--text-main);
+      width: 40px;
+      height: 40px;
+      border-radius: 12px;
       display: flex;
       align-items: center;
       justify-content: center;
-      box-shadow: 0 4px 12px rgba(2, 132, 199, 0.3);
-    }
-
-    .brand-icon svg {
-      width: 20px;
-      height: 20px;
-      fill: #ffffff;
+      cursor: pointer;
+      font-size: 1.1rem;
     }
 
     .brand-title {
-      font-size: 1.2rem;
+      font-size: 1.25rem;
       font-weight: 700;
-      color: var(--text-main);
+      letter-spacing: -0.3px;
     }
 
     .header-actions {
@@ -132,204 +125,246 @@
       gap: 6px;
     }
 
-    .header-status {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      font-size: 0.78rem;
-      background: rgba(16, 185, 129, 0.12);
-      border: 1px solid rgba(16, 185, 129, 0.25);
-      padding: 6px 10px;
-      border-radius: 20px;
-      color: var(--success);
-      font-weight: 600;
+    /* القائمة المخفية الجانبية (Drawer) */
+    .drawer-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.6);
+      backdrop-filter: blur(6px);
+      z-index: 99;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s ease;
     }
 
-    .status-dot {
-      width: 7px;
-      height: 7px;
-      background-color: var(--success);
-      border-radius: 50%;
+    .drawer-overlay.active {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .drawer {
+      position: fixed;
+      top: 0;
+      right: -300px;
+      width: 300px;
+      height: 100vh;
+      background: var(--drawer-bg);
+      border-left: 1px solid var(--card-border);
+      z-index: 100;
+      display: flex;
+      flex-direction: column;
+      padding: 24px;
+      gap: 20px;
+      box-shadow: -10px 0 30px rgba(0,0,0,0.5);
+      transition: right 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .drawer.active {
+      right: 0;
+    }
+
+    .drawer-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid var(--card-border);
+      padding-bottom: 16px;
+    }
+
+    .drawer-title {
+      font-size: 1.1rem;
+      font-weight: 700;
+    }
+
+    .drawer-close {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      font-size: 1.5rem;
+      cursor: pointer;
+    }
+
+    .drawer-menu {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .drawer-item {
+      background: transparent;
+      border: 1px solid transparent;
+      color: var(--text-main);
+      padding: 12px 16px;
+      border-radius: 12px;
+      text-align: right;
+      font-size: 0.95rem;
+      font-weight: 500;
+      cursor: pointer;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      transition: all 0.2s;
+    }
+
+    .drawer-item:hover, .drawer-item.active {
+      background: rgba(56, 189, 248, 0.1);
+      border-color: rgba(56, 189, 248, 0.3);
+      color: var(--accent);
     }
 
     /* الحاوية الرئيسية */
     main {
       width: 100%;
-      max-width: 900px;
+      max-width: 860px;
       margin: 0 auto;
-      padding: 20px 16px;
+      padding: 30px 16px;
       display: flex;
       flex-direction: column;
-      gap: 18px;
+      gap: 24px;
     }
 
-    .hero-text {
+    .hero-section {
       text-align: center;
-      margin-top: 4px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-top: 10px;
     }
 
-    .hero-text h1 {
-      font-size: 1.55rem;
+    .hero-section h1 {
+      font-size: 1.8rem;
       font-weight: 700;
-      margin-bottom: 4px;
-      color: var(--text-main);
+      letter-spacing: -0.5px;
     }
 
-    .hero-text p {
-      font-size: 0.92rem;
+    .hero-section p {
+      font-size: 1rem;
       color: var(--text-muted);
+      max-width: 500px;
+      margin: 0 auto;
+      line-height: 1.5;
     }
 
-    /* مربع البحث */
+    /* مربع البحث المركزي البارز */
     .search-wrapper {
       position: relative;
       width: 100%;
+      max-width: 680px;
+      margin: 10px auto 0;
     }
 
     .search-input {
       width: 100%;
       background: var(--input-bg);
+      backdrop-filter: blur(10px);
       border: 1px solid var(--card-border);
-      padding: 15px 48px 15px 18px;
-      border-radius: 14px;
-      font-size: 1rem;
+      padding: 18px 56px 18px 24px;
+      border-radius: 18px;
+      font-size: 1.1rem;
       color: var(--text-main);
       outline: none;
-      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+      transition: all 0.3s ease;
     }
 
     .search-input:focus {
       border-color: var(--accent);
+      box-shadow: 0 0 0 4px rgba(56, 189, 248, 0.15);
     }
 
     .search-icon {
       position: absolute;
-      right: 16px;
+      right: 20px;
       top: 50%;
       transform: translateY(-50%);
-      width: 20px;
-      height: 20px;
+      width: 24px;
+      height: 24px;
       stroke: var(--text-muted);
     }
 
-    /* شريط التصنيفات */
-    .categories-bar {
+    /* فلترة نوع الملف */
+    .filter-bar {
       display: flex;
+      justify-content: center;
       gap: 8px;
-      overflow-x: auto;
-      padding-bottom: 4px;
-      scrollbar-width: none;
+      flex-wrap: wrap;
+      margin-top: 5px;
     }
 
-    .categories-bar::-webkit-scrollbar {
-      display: none;
-    }
-
-    .category-btn {
+    .filter-btn {
       background: var(--card-bg);
-      color: var(--text-muted);
       border: 1px solid var(--card-border);
-      padding: 8px 16px;
+      color: var(--text-muted);
+      padding: 7px 16px;
       border-radius: 12px;
-      font-size: 0.88rem;
+      font-size: 0.85rem;
       font-weight: 500;
       cursor: pointer;
-      white-space: nowrap;
     }
 
-    .category-btn.active {
+    .filter-btn.active {
       background: var(--primary);
       border-color: var(--accent);
       color: #ffffff;
-    }
-
-    /* بطاقات الإحصاءات */
-    .stats-grid {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 10px;
-    }
-
-    .stat-card {
-      background: var(--card-bg);
-      border: 1px solid var(--card-border);
-      padding: 12px 14px;
-      border-radius: 12px;
-      display: flex;
-      flex-direction: column;
-      gap: 4px;
-      text-align: center;
-    }
-
-    .stat-label {
-      font-size: 0.78rem;
-      color: var(--text-muted);
-    }
-
-    .stat-value {
-      font-size: 1.15rem;
-      font-weight: 700;
-      color: var(--text-main);
     }
 
     /* قائمة المستندات */
     .documents-list {
       display: flex;
       flex-direction: column;
-      gap: 10px;
+      gap: 12px;
+      margin-top: 10px;
     }
 
     .doc-item {
       background: var(--card-bg);
+      backdrop-filter: blur(12px);
       border: 1px solid var(--card-border);
-      border-radius: 12px;
-      padding: 14px 16px;
+      border-radius: 16px;
+      padding: 16px 20px;
       display: flex;
       justify-content: space-between;
       align-items: center;
-      cursor: pointer;
-      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.03);
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+      transition: transform 0.2s, border-color 0.2s;
     }
 
     .doc-item:hover {
-      border-color: var(--accent);
+      border-color: rgba(56, 189, 248, 0.4);
+      transform: translateY(-2px);
     }
 
     .doc-info {
       display: flex;
       align-items: center;
-      gap: 12px;
+      gap: 16px;
       flex: 1;
       overflow: hidden;
     }
 
     .doc-icon {
-      width: 40px;
-      height: 40px;
-      border-radius: 10px;
-      background: rgba(30, 58, 138, 0.15);
-      border: 1px solid rgba(56, 189, 248, 0.2);
+      width: 48px;
+      height: 48px;
+      border-radius: 14px;
+      background: rgba(30, 58, 138, 0.2);
+      border: 1px solid rgba(56, 189, 248, 0.3);
       display: flex;
       align-items: center;
       justify-content: center;
       flex-shrink: 0;
-    }
-
-    .doc-icon svg {
-      width: 20px;
-      height: 20px;
-      stroke: var(--accent);
+      font-weight: 700;
+      font-size: 0.85rem;
     }
 
     .doc-details {
       display: flex;
       flex-direction: column;
-      gap: 3px;
+      gap: 4px;
       overflow: hidden;
     }
 
     .doc-title {
-      font-size: 0.95rem;
+      font-size: 1.02rem;
       font-weight: 600;
       color: var(--text-main);
       white-space: nowrap;
@@ -338,28 +373,68 @@
     }
 
     .doc-meta {
-      font-size: 0.78rem;
+      font-size: 0.8rem;
       color: var(--text-muted);
       display: flex;
-      gap: 10px;
+      gap: 14px;
+      align-items: center;
     }
 
-    .preview-badge {
-      background: rgba(56, 189, 248, 0.12);
-      color: var(--accent);
-      border: 1px solid rgba(56, 189, 248, 0.25);
-      padding: 6px 14px;
-      border-radius: 8px;
-      font-size: 0.82rem;
+    .badge-expiry {
+      background: rgba(245, 158, 11, 0.15);
+      color: var(--warning);
+      border: 1px solid rgba(245, 158, 11, 0.3);
+      padding: 2px 8px;
+      border-radius: 6px;
+      font-size: 0.75rem;
       font-weight: 600;
-      white-space: nowrap;
     }
 
-    /* نافذة المعاينة المباشرة */
+    .doc-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .btn-action {
+      background: rgba(56, 189, 248, 0.1);
+      border: 1px solid rgba(56, 189, 248, 0.25);
+      color: var(--accent);
+      padding: 8px 14px;
+      border-radius: 10px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      text-decoration: none;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: background 0.2s;
+    }
+
+    .btn-action:hover {
+      background: rgba(56, 189, 248, 0.2);
+    }
+
+    .btn-copy {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      color: var(--text-muted);
+      padding: 8px 10px;
+      border-radius: 10px;
+      cursor: pointer;
+    }
+
+    .btn-copy:hover {
+      color: var(--text-main);
+      border-color: var(--text-muted);
+    }
+
+    /* نافذة المعاينة */
     .modal-overlay {
       position: fixed;
       inset: 0;
-      background: rgba(0, 0, 0, 0.8);
+      background: rgba(0, 0, 0, 0.85);
       backdrop-filter: blur(8px);
       z-index: 100;
       display: none;
@@ -373,19 +448,20 @@
     }
 
     .modal-box {
-      background: var(--card-bg);
+      background: var(--drawer-bg);
       border: 1px solid var(--card-border);
       width: 100%;
-      max-width: 800px;
-      height: 86vh;
-      border-radius: 18px;
+      max-width: 840px;
+      height: 88vh;
+      border-radius: 20px;
       display: flex;
       flex-direction: column;
       overflow: hidden;
+      box-shadow: 0 25px 50px rgba(0,0,0,0.5);
     }
 
     .modal-header {
-      padding: 14px 18px;
+      padding: 16px 20px;
       border-bottom: 1px solid var(--card-border);
       display: flex;
       justify-content: space-between;
@@ -393,11 +469,8 @@
     }
 
     .modal-title {
-      font-size: 1rem;
+      font-size: 1.05rem;
       font-weight: 600;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
     }
 
     .close-btn {
@@ -423,21 +496,15 @@
       height: 100%;
       border: none;
     }
-
-    @media (max-width: 600px) {
-      .stats-grid {
-        grid-template-columns: 1fr;
-      }
-    }
   </style>
 </head>
 <body>
 
   <header>
     <div class="brand">
-      <div class="brand-icon">
-        <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
-      </div>
+      <button class="menu-trigger-btn" id="menuBtn" title="فتح الأقسام">
+        📁
+      </button>
       <div class="brand-title">مستنداتي</div>
     </div>
     <div class="header-actions">
@@ -445,44 +512,55 @@
         <span id="themeIcon">☀️</span>
         <span id="themeText">النهاري</span>
       </button>
-      <div class="header-status">
-        <div class="status-dot"></div>
-        <span>متصل</span>
-      </div>
     </div>
   </header>
 
+  <!-- القائمة المخفية الأقسام (Drawer) -->
+  <div class="drawer-overlay" id="drawerOverlay"></div>
+  <div class="drawer" id="sideDrawer">
+    <div class="drawer-header">
+      <div class="drawer-title">أقسام المستندات</div>
+      <button class="drawer-close" id="drawerClose">&times;</button>
+    </div>
+    <div class="drawer-menu" id="drawerMenu">
+      <button class="drawer-item active" data-folder="all">
+        <span>📁 جميع الملفات</span>
+        <span style="font-size:0.75rem; background:rgba(56,189,248,0.15); padding:2px 8px; border-radius:6px;" id="countAll">0</span>
+      </button>
+      <button class="drawer-item" data-folder="02 - شخصي">
+        <span>📁 02 - شخصي</span>
+        <span style="font-size:0.75rem; background:rgba(56,189,248,0.15); padding:2px 8px; border-radius:6px;" id="countPersonal">0</span>
+      </button>
+      <button class="drawer-item" data-folder="01 - العمل">
+        <span>📁 01 - العمل</span>
+        <span style="font-size:0.75rem; background:rgba(56,189,248,0.15); padding:2px 8px; border-radius:6px;" id="countWork">0</span>
+      </button>
+      <button class="drawer-item" data-folder="08-عقارات">
+        <span>📁 08-عقارات ومغاسل</span>
+        <span style="font-size:0.75rem; background:rgba(56,189,248,0.15); padding:2px 8px; border-radius:6px;" id="countRealestate">0</span>
+      </button>
+      <button class="drawer-item" data-folder="مقالات وبحوث">
+        <span>📁 مقالات وبحوث ومصاريف</span>
+        <span style="font-size:0.75rem; background:rgba(56,189,248,0.15); padding:2px 8px; border-radius:6px;" id="countArticles">0</span>
+      </button>
+    </div>
+  </div>
+
   <main>
-    <div class="hero-text">
-      <h1>خزانة مستنداتك الشخصية</h1>
-      <p>استعراض ومعاينة مباشرة لملفاتك في Google Drive</p>
-    </div>
-
-    <div class="search-wrapper">
-      <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-      <input type="text" id="searchInput" class="search-input" placeholder="ابحث بالاسم، أو الرقم، أو المجلد...">
-    </div>
-
-    <div class="categories-bar">
-      <button class="category-btn active" data-folder="all">الكل</button>
-      <button class="category-btn" data-folder="02 - شخصي">02 - شخصي</button>
-      <button class="category-btn" data-folder="01 - العمل">01 - العمل</button>
-      <button class="category-btn" data-folder="08-عقارات">08-عقارات</button>
-      <button class="category-btn" data-folder="مقالات وبحوث">مقالات وبحوث</button>
-    </div>
-
-    <div class="stats-grid">
-      <div class="stat-card">
-        <span class="stat-label">المستندات</span>
-        <span class="stat-value" id="totalCount">0</span>
+    <div class="hero-section">
+      <h1>حفظ، تنظيم، وأمان مطلق</h1>
+      <p>خزانتك الشخصية المتكاملة لجميع الملفات والوثائق الرسمية والعملية المرتبطة بـ Google Drive</p>
+      
+      <div class="search-wrapper">
+        <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+        <input type="text" id="searchInput" class="search-input" placeholder="ابحث عن مستند، رقم، أو جهة...">
       </div>
-      <div class="stat-card">
-        <span class="stat-label">المجلدات</span>
-        <span class="stat-value">4 مجلدات</span>
-      </div>
-      <div class="stat-card">
-        <span class="stat-label">حالة التخزين</span>
-        <span class="stat-value" style="color: var(--success); font-size: 0.95rem;">آمن في Drive</span>
+
+      <div class="filter-bar" style="margin-top: 12px;">
+        <button class="filter-btn active" data-type="all">الكل</button>
+        <button class="filter-btn" data-type="pdf">PDF</button>
+        <button class="filter-btn" data-type="excel">Excel / شيت</button>
+        <button class="filter-btn" data-type="image">صور</button>
       </div>
     </div>
 
@@ -501,141 +579,79 @@
 
   <script>
     let documents = [
-      {
-        id: '1',
-        title: 'الهوية الوطنية',
-        folder: '02 - شخصي',
-        date: '2026-09-28',
-        url: 'https://drive.google.com/file/d/1GlmTx0RLnrfvuPjJ8YaXQDT-6CMh00q_/preview'
-      },
-      {
-        id: '2',
-        title: 'جواز السفر _2031',
-        folder: '02 - شخصي',
-        date: '2026-09-30',
-        url: 'https://drive.google.com/file/d/1g5h1C_0Bv17iew06clOVS8aL_SSdj9Bt/preview'
-      },
-      {
-        id: '3',
-        title: 'بطاقات وأرقام الحسابات البنكية (الآيبان)',
-        folder: '02 - شخصي',
-        date: '2026-09-28',
-        url: 'https://drive.google.com/file/d/1KYS9u9WNMUh-Rqba6Vy5UNcQ2CBtVQy_/preview'
-      },
-      {
-        id: '4',
-        title: 'محضر إحالة التسوية الودية (قضية استحقاق درجة)',
-        folder: '02 - شخصي',
-        date: '2026-11-08',
-        url: 'https://drive.google.com/file/d/14oPhyn1TLT3ZunOzX7iXwF0b4rlWcTqZ/preview'
-      },
-      {
-        id: '5',
-        title: 'بيان خدمة وظيفية 2026',
-        folder: '02 - شخصي',
-        date: '2026-11-04',
-        url: 'https://drive.google.com/file/d/1C2PRElvsthFpDRUJIQ3ietozfY8sQwWi/preview'
-      },
-      {
-        id: '6',
-        title: 'شهادة ترخيص مكافحة العدوى (بكسل BICSL)',
-        folder: '02 - شخصي',
-        date: '2026-09-23',
-        url: 'https://drive.google.com/file/d/1WDAVVVtfBABCLJqQxZqiopjiJlTEpE-C/preview'
-      },
-      {
-        id: '7',
-        title: 'قرار التعيين المعتمد',
-        folder: '01 - العمل',
-        date: '2026-09-30',
-        url: 'https://drive.google.com/file/d/1evzh8eIVqr9Ie8TouFBLGodIQtiPQfhB/preview'
-      },
-      {
-        id: '8',
-        title: 'إقرار صرف بدل العمل في المستشفيات النفسية 2026',
-        folder: '01 - العمل',
-        date: '2026-10-04',
-        url: 'https://drive.google.com/file/d/1yW84NAmQqjFKOdlLmUTVKJdu2FPEHFe6/preview'
-      },
-      {
-        id: '9',
-        title: 'وثيقة تأمين المسؤولية المهنية الطبية (3 سنوات)',
-        folder: '01 - العمل',
-        date: '2026-10-27',
-        url: 'https://drive.google.com/file/d/15a9VV8-hh7bPqO7khu-uiLUWK-rEyfSb/preview'
-      },
-      {
-        id: '10',
-        title: 'سجل متابعة طلبات التأمين الطبي (الشيت السحابي)',
-        folder: '01 - العمل',
-        date: '2026-11-06',
-        url: 'https://docs.google.com/spreadsheets/d/135L6yG_lk5HPj77mZbUqv3-oZNWWd4T5N6yR6hX3Wk0/htmlembed'
-      },
-      {
-        id: '11',
-        title: 'السجل التجاري لمؤسسة روما الذهبية',
-        folder: '08-عقارات',
-        date: '2026-10-19',
-        url: 'https://drive.google.com/file/d/1TMiGcd00zCQJStrDMXUSvv8piGfC2KNE/preview'
-      },
-      {
-        id: '12',
-        title: 'كشف حساب جاري - مؤسسة روما الذهبية للغسيل',
-        folder: '08-عقارات',
-        date: '2026-11-01',
-        url: 'https://drive.google.com/file/d/1Rh1q_LN_ruK3UbSmHWw_zJc9uCC6rAmj/preview'
-      },
-      {
-        id: '13',
-        title: 'رخصة إنشاء موقع شوران',
-        folder: '08-عقارات',
-        date: '2026-10-19',
-        url: 'https://drive.google.com/file/d/1FN2n3FIfQhIHn52GuBd-Kn2s8y_IBuHK/preview'
-      },
-      {
-        id: '14',
-        title: 'نموذج اللوحة الإرشادية المعتمدة - منصة بلدي',
-        folder: '08-عقارات',
-        date: '2026-10-25',
-        url: 'https://drive.google.com/file/d/1m-GjKjduA4jXAj-sfqRugt1XPIpvhS6y/preview'
-      },
-      {
-        id: '15',
-        title: 'لوحة متابعة أسعار الشقق والفرص العقارية (جدة والمدينة)',
-        folder: '08-عقارات',
-        date: '2026-11-07',
-        url: 'https://docs.google.com/spreadsheets/d/19lEW-bKY-mnjmxq61BM-WJdrK_YNEPAHhwLcYYMt0b8/htmlembed'
-      },
-      {
-        id: '16',
-        title: 'التقرير الاستراتيجي الشامل - الملف اليمني وعاصفة الحزم',
-        folder: 'مقالات وبحوث',
-        date: '2026-10-14',
-        url: 'https://drive.google.com/file/d/1-gewbTkk1oSItRI_MtFGyAbn9Bwrsavh/preview'
-      },
-      {
-        id: '17',
-        title: 'بيان تكاليف دراسة الماجستير في مصر',
-        folder: 'مقالات وبحوث',
-        date: '2026-10-25',
-        url: 'https://drive.google.com/file/d/1KbBrCOc3hKOLHLJ8OGS_NYlABAG9fhbu/preview'
-      }
+      { id: '1', title: 'الهوية الوطنية', folder: '02 - شخصي', type: 'pdf', date: '2026-09-28', size: '1.2 MB', copyText: '1060432000', expiry: 'ينتهي قريباً: 01/08/2029', url: 'https://drive.google.com/file/d/1GlmTx0RLnrfvuPjJ8YaXQDT-6CMh00q_/preview' },
+      { id: '2', title: 'جواز السفر _2031', folder: '02 - شخصي', type: 'pdf', date: '2026-09-30', size: '3.3 MB', copyText: 'Y850804', expiry: '', url: 'https://drive.google.com/file/d/1g5h1C_0Bv17iew06clOVS8aL_SSdj9Bt/preview' },
+      { id: '3', title: 'بطاقات وأرقام الحسابات البنكية (الآيبان)', folder: '02 - شخصي', type: 'image', date: '2026-09-28', size: '2.2 MB', copyText: 'SA5915000723110709160007', expiry: '', url: 'https://drive.google.com/file/d/1KYS9u9WNMUh-Rqba6Vy5UNcQ2CBtVQy_/preview' },
+      { id: '4', title: 'محضر إحالة التسوية الودية (قضية استحقاق درجة)', folder: '02 - شخصي', type: 'pdf', date: '2026-11-08', size: '481 KB', copyText: '126489', expiry: '', url: 'https://drive.google.com/file/d/14oPhyn1TLT3ZunOzX7iXwF0b4rlWcTqZ/preview' },
+      { id: '5', title: 'بيان خدمة وظيفية 2026', folder: '02 - شخصي', type: 'pdf', date: '2026-11-04', size: '64 KB', copyText: '64073', expiry: '', url: 'https://drive.google.com/file/d/1C2PRElvsthFpDRUJIQ3ietozfY8sQwWi/preview' },
+      { id: '6', title: 'شهادة ترخيص مكافحة العدوى (بكسل BICSL)', folder: '02 - شخصي', type: 'pdf', date: '2026-09-23', size: '279 KB', copyText: 'C-B0000411436-1', expiry: 'ينتهي قريباً: 10/03/2027', url: 'https://drive.google.com/file/d/1WDAVVVtfBABCLJqQxZqiopjiJlTEpE-C/preview' },
+      { id: '7', title: 'قرار التعيين المعتمد', folder: '01 - العمل', type: 'pdf', date: '2026-09-30', size: '453 KB', copyText: '21838', expiry: '', url: 'https://drive.google.com/file/d/1evzh8eIVqr9Ie8TouFBLGodIQtiPQfhB/preview' },
+      { id: '8', title: 'إقرار صرف بدل العمل في المستشفيات النفسية 2026', folder: '01 - العمل', type: 'pdf', date: '2026-10-04', size: '1.3 MB', copyText: '', expiry: '', url: 'https://drive.google.com/file/d/1yW84NAmQqjFKOdlLmUTVKJdu2FPEHFe6/preview' },
+      { id: '9', title: 'وثيقة تأمين المسؤولية المهنية الطبية (3 سنوات)', folder: '01 - العمل', type: 'pdf', date: '2026-10-27', size: '332 KB', copyText: '651441360', expiry: 'ينتهي قريباً: 27/10/2029', url: 'https://drive.google.com/file/d/15a9VV8-hh7bPqO7khu-uiLUWK-rEyfSb/preview' },
+      { id: '10', title: 'سجل متابعة طلبات التأمين الطبي (الشيت السحابي)', folder: '01 - العمل', type: 'excel', date: '2026-11-06', size: 'شيت سحابي', copyText: '', expiry: '', url: 'https://docs.google.com/spreadsheets/d/135L6yG_lk5HPj77mZbUqv3-oZNWWd4T5N6yR6hX3Wk0/htmlembed' },
+      { id: '11', title: 'السجل التجاري لمؤسسة روما الذهبية', folder: '08-عقارات', type: 'image', date: '2026-10-19', size: '77 KB', copyText: '7016682465', expiry: '', url: 'https://drive.google.com/file/d/1TMiGcd00zCQJStrDMXUSvv8piGfC2KNE/preview' },
+      { id: '12', title: 'كشف حساب جاري - مؤسسة روما الذهبية للغسيل', folder: '08-عقارات', type: 'pdf', date: '2026-11-01', size: '214 KB', copyText: '598608016100214', expiry: '', url: 'https://drive.google.com/file/d/1Rh1q_LN_ruK3UbSmHWw_zJc9uCC6rAmj/preview' },
+      { id: '13', title: 'رخصة إنشاء موقع شوران', folder: '08-عقارات', type: 'image', date: '2026-10-19', size: '103 KB', copyText: '4201083', expiry: '', url: 'https://drive.google.com/file/d/1FN2n3FIfQhIHn52GuBd-Kn2s8y_IBuHK/preview' },
+      { id: '14', title: 'نموذج اللوحة الإرشادية المعتمدة - منصة بلدي', folder: '08-عقارات', type: 'pdf', date: '2026-10-25', size: '380 KB', copyText: '4201083', expiry: '', url: 'https://drive.google.com/file/d/1m-GjKjduA4jXAj-sfqRugt1XPIpvhS6y/preview' },
+      { id: '15', title: 'لوحة متابعة أسعار الشقق والفرص العقارية', folder: '08-عقارات', type: 'excel', date: '2026-11-07', size: 'شيت سحابي', copyText: '', expiry: '', url: 'https://docs.google.com/spreadsheets/d/19lEW-bKY-mnjmxq61BM-WJdrK_YNEPAHhwLcYYMt0b8/htmlembed' },
+      { id: '16', title: 'التقرير الاستراتيجي الشامل - الملف اليمني وعاصفة الحزم', folder: 'مقالات وبحوث', type: 'pdf', date: '2026-10-14', size: '254 KB', copyText: '', expiry: '', url: 'https://drive.google.com/file/d/1-gewbTkk1oSItRI_MtFGyAbn9Bwrsavh/preview' },
+      { id: '17', title: 'بيان تكاليف دراسة الماجستير في مصر', folder: 'مقالات وبحوث', type: 'image', date: '2026-10-25', size: '1.0 MB', copyText: '', expiry: '', url: 'https://drive.google.com/file/d/1KbBrCOc3hKOLHLJ8OGS_NYlABAG9fhbu/preview' }
     ];
 
-    let currentFilter = 'all';
+    let currentFolder = 'all';
+    let currentType = 'all';
     let searchQuery = '';
 
     const docsList = document.getElementById('docsList');
-    const totalCountEl = document.getElementById('totalCount');
     const searchInput = document.getElementById('searchInput');
-    const categoryBtns = document.querySelectorAll('.category-btn');
+    const filterBtns = document.querySelectorAll('.filter-btn');
 
     const previewModal = document.getElementById('previewModal');
     const previewTitle = document.getElementById('previewTitle');
     const previewContainer = document.getElementById('previewContainer');
     const closePreviewBtn = document.getElementById('closePreviewBtn');
 
-    // زر التبديل بين النهاري والليلي
+    // القائمة الجانبية
+    const menuBtn = document.getElementById('menuBtn');
+    const sideDrawer = document.getElementById('sideDrawer');
+    const drawerOverlay = document.getElementById('drawerOverlay');
+    const drawerClose = document.getElementById('drawerClose');
+    const drawerItems = document.querySelectorAll('.drawer-item');
+
+    function toggleDrawer(open) {
+      if (open) {
+        sideDrawer.classList.add('active');
+        drawerOverlay.classList.add('active');
+      } else {
+        sideDrawer.classList.remove('active');
+        drawerOverlay.classList.remove('active');
+      }
+    }
+
+    menuBtn.addEventListener('click', () => toggleDrawer(true));
+    drawerClose.addEventListener('click', () => toggleDrawer(false));
+    drawerOverlay.addEventListener('click', () => toggleDrawer(false));
+
+    drawerItems.forEach(item => {
+      item.addEventListener('click', () => {
+        drawerItems.forEach(i => i.classList.remove('active'));
+        item.classList.add('active');
+        currentFolder = item.dataset.folder;
+        toggleDrawer(false);
+        renderDocuments();
+      });
+    });
+
+    // تحديث العدادات
+    function updateCounters() {
+      document.getElementById('countAll').textContent = documents.length;
+      document.getElementById('countPersonal').textContent = documents.filter(d => d.folder === '02 - شخصي').length;
+      document.getElementById('countWork').textContent = documents.filter(d => d.folder === '01 - العمل').length;
+      document.getElementById('countRealestate').textContent = documents.filter(d => d.folder === '08-عقارات').length;
+      document.getElementById('countArticles').textContent = documents.filter(d => d.folder === 'مقالات وبحوث').length;
+    }
+
+    // الثيم
     const themeToggleBtn = document.getElementById('themeToggleBtn');
     const themeIcon = document.getElementById('themeIcon');
     const themeText = document.getElementById('themeText');
@@ -654,61 +670,66 @@
       }
     }
 
-    // استعادة الثيم المحفوظ
-    const savedTheme = localStorage.getItem('mostanadati-theme');
-    if (savedTheme === 'light') {
-      applyTheme(true);
-    }
+    if (localStorage.getItem('mostanadati-theme') === 'light') applyTheme(true);
 
     themeToggleBtn.addEventListener('click', () => {
-      const isCurrentlyLight = document.body.classList.contains('light-mode');
-      applyTheme(!isCurrentlyLight);
+      applyTheme(!document.body.classList.contains('light-mode'));
     });
 
-    // رسم القائمة
     function renderDocuments() {
       docsList.innerHTML = '';
 
       const filtered = documents.filter(doc => {
-        const matchesFolder = (currentFilter === 'all') || (doc.folder === currentFilter);
+        const matchesFolder = (currentFolder === 'all') || (doc.folder === currentFolder);
+        const matchesType = (currentType === 'all') || (doc.type === currentType);
         const matchesSearch = doc.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
                               doc.folder.toLowerCase().includes(searchQuery.toLowerCase());
-        return matchesFolder && matchesSearch;
+        return matchesFolder && matchesType && matchesSearch;
       });
-
-      totalCountEl.textContent = filtered.length;
 
       if (filtered.length === 0) {
         docsList.innerHTML = `
           <div style="text-align: center; padding: 40px; color: var(--text-muted);">
-            لا توجد مستندات مطابقة
+            لا توجد مستندات مطابقة للبحث
           </div>
         `;
         return;
       }
 
       filtered.forEach(doc => {
+        let typeBadge = doc.type.toUpperCase();
+        if(doc.type === 'excel') typeBadge = 'XLS';
+        if(doc.type === 'image') typeBadge = 'IMG';
+
         const item = document.createElement('div');
         item.className = 'doc-item';
-        item.onclick = () => openPreview(doc.id);
         item.innerHTML = `
-          <div class="doc-info">
-            <div class="doc-icon">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
-            </div>
+          <div class="doc-info" onclick="openPreview('${doc.id}')" style="cursor: pointer;">
+            <div class="doc-icon">${typeBadge}</div>
             <div class="doc-details">
               <div class="doc-title">${doc.title}</div>
               <div class="doc-meta">
                 <span>📁 ${doc.folder}</span>
-                <span>📅 ${doc.date}</span>
+                <span>📦 ${doc.size}</span>
+                ${doc.expiry ? `<span class="badge-expiry">⚠️ ${doc.expiry}</span>` : ''}
               </div>
             </div>
           </div>
-          <div class="preview-badge">معاينة</div>
+          <div class="doc-actions">
+            ${doc.copyText ? `<button class="btn-copy" title="نسخ البيانات السريعة" onclick="copyText('${doc.copyText}')">📋</button>` : ''}
+            <button class="btn-action" onclick="openPreview('${doc.id}')">معاينة</button>
+            <a href="${doc.url.replace('/preview', '/view')}" target="_blank" class="btn-action" style="background: rgba(16,185,129,0.15); border-color: rgba(16,185,129,0.3); color: var(--success);">مشاركة Drive</a>
+          </div>
         `;
         docsList.appendChild(item);
       });
     }
+
+    window.copyText = function(text) {
+      navigator.clipboard.writeText(text).then(() => {
+        alert('تم نسخ النص بنجاح: ' + text);
+      });
+    };
 
     window.openPreview = function(id) {
       const doc = documents.find(d => d.id === id);
@@ -724,11 +745,11 @@
       previewContainer.innerHTML = '';
     });
 
-    categoryBtns.forEach(btn => {
+    filterBtns.forEach(btn => {
       btn.addEventListener('click', () => {
-        categoryBtns.forEach(b => b.classList.remove('active'));
+        filterBtns.forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
-        currentFilter = btn.dataset.folder;
+        currentType = btn.dataset.type;
         renderDocuments();
       });
     });
@@ -738,6 +759,7 @@
       renderDocuments();
     });
 
+    updateCounters();
     renderDocuments();
   </script>
 </body>
