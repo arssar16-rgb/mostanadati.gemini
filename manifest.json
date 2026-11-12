@@ -1,0 +1,21 @@
+{
+  "name": "مستنداتي - الأرشيف الشخصي",
+  "short_name": "مستنداتي",
+  "description": "فهرس وأرشيف المستندات الشخصية المتزامن مع Google Drive",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0B192C",
+  "theme_color": "#0B192C",
+  "dir": "rtl",
+  "lang": "ar",
+  "icons": [
+    {
+      "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' rx='112' fill='%230B192C'/%3E%3Cpath d='M144 160h96l32 32h96c17.7 0 32 14.3 32 32v128c0 17.7-14.3 32-32 32H144c-17.7 0-32-14.3-32-32V192c0-17.7 14.3-32 32-32z' fill='none' stroke='%23D4AF6A' stroke-width='28' stroke-linejoin='round'/%3E%3C/svg%3E",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
