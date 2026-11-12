@@ -1,766 +1,324 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>مستنداتي | خزانة المستندات الشخصية والوظيفية</title>
-  
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="مستنداتي">
-  <meta name="theme-color" content="#070c18">
-  
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <meta name="theme-color" content="#0B192C" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="مستنداتي" />
+  <title>مستنداتي | الأرشيف الشخصي الذكي</title>
 
-  <style>
-    :root {
-      --bg: #070c18;
-      --card-bg: rgba(15, 23, 42, 0.75);
-      --card-border: rgba(30, 41, 59, 0.8);
-      --primary: #1e3a8a;
-      --accent: #38bdf8;
-      --text-main: #f8fafc;
-      --text-muted: #94a3b8;
-      --input-bg: rgba(11, 19, 41, 0.85);
-      --preview-bg: #060a12;
-      --success: #10b981;
-      --warning: #f59e0b;
-      --header-bg: rgba(15, 23, 42, 0.85);
-      --drawer-bg: #0b1329;
-    }
+  <!-- الخط العربي الاحترافي -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
 
-    body.light-mode {
-      --bg: #f8fafc;
-      --card-bg: rgba(255, 255, 255, 0.85);
-      --card-border: rgba(226, 232, 240, 0.9);
-      --primary: #0284c7;
-      --accent: #0284c7;
-      --text-main: #0f172a;
-      --text-muted: #64748b;
-      --input-bg: rgba(241, 245, 249, 0.9);
-      --preview-bg: #e2e8f0;
-      --success: #059669;
-      --warning: #d97706;
-      --header-bg: rgba(255, 255, 255, 0.85);
-      --drawer-bg: #ffffff;
-    }
+  <!-- أيقونات Lucide النظيفة -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <!-- مكتبة Google Identity Services -->
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
 
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-      font-family: 'IBM Plex Sans Arabic', -apple-system, BlinkMacSystemFont, sans-serif;
-      -webkit-tap-highlight-color: transparent;
-      transition: background-color 0.25s ease, color 0.25s ease, border-color 0.25s ease;
-    }
-
-    body {
-      background-color: var(--bg);
-      color: var(--text-main);
-      min-height: 100vh;
-      display: flex;
-      flex-direction: column;
-      padding-bottom: 40px;
-    }
-
-    header {
-      background: var(--header-bg);
-      backdrop-filter: blur(16px);
-      -webkit-backdrop-filter: blur(16px);
-      border-bottom: 1px solid var(--card-border);
-      position: sticky;
-      top: 0;
-      z-index: 50;
-      padding: 14px 20px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-
-    .brand {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-    }
-
-    .menu-trigger-btn {
-      background: var(--card-bg);
-      border: 1px solid var(--card-border);
-      color: var(--text-main);
-      width: 40px;
-      height: 40px;
-      border-radius: 12px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      cursor: pointer;
-      font-size: 1.1rem;
-    }
-
-    .brand-title {
-      font-size: 1.25rem;
-      font-weight: 700;
-      letter-spacing: -0.3px;
-    }
-
-    .header-actions {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
-
-    .theme-toggle-btn {
-      background: var(--card-bg);
-      border: 1px solid var(--card-border);
-      color: var(--text-main);
-      padding: 6px 12px;
-      border-radius: 20px;
-      font-size: 0.85rem;
-      font-weight: 600;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      gap: 6px;
-    }
-
-    /* القائمة المخفية الجانبية (Drawer) */
-    .drawer-overlay {
-      position: fixed;
-      inset: 0;
-      background: rgba(0, 0, 0, 0.6);
-      backdrop-filter: blur(6px);
-      z-index: 99;
-      opacity: 0;
-      pointer-events: none;
-      transition: opacity 0.3s ease;
-    }
-
-    .drawer-overlay.active {
-      opacity: 1;
-      pointer-events: auto;
-    }
-
-    .drawer {
-      position: fixed;
-      top: 0;
-      right: -300px;
-      width: 300px;
-      height: 100vh;
-      background: var(--drawer-bg);
-      border-left: 1px solid var(--card-border);
-      z-index: 100;
-      display: flex;
-      flex-direction: column;
-      padding: 24px;
-      gap: 20px;
-      box-shadow: -10px 0 30px rgba(0,0,0,0.5);
-      transition: right 0.35s cubic-bezier(0.16, 1, 0.3, 1);
-    }
-
-    .drawer.active {
-      right: 0;
-    }
-
-    .drawer-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      border-bottom: 1px solid var(--card-border);
-      padding-bottom: 16px;
-    }
-
-    .drawer-title {
-      font-size: 1.1rem;
-      font-weight: 700;
-    }
-
-    .drawer-close {
-      background: transparent;
-      border: none;
-      color: var(--text-muted);
-      font-size: 1.5rem;
-      cursor: pointer;
-    }
-
-    .drawer-menu {
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-    }
-
-    .drawer-item {
-      background: transparent;
-      border: 1px solid transparent;
-      color: var(--text-main);
-      padding: 12px 16px;
-      border-radius: 12px;
-      text-align: right;
-      font-size: 0.95rem;
-      font-weight: 500;
-      cursor: pointer;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      transition: all 0.2s;
-    }
-
-    .drawer-item:hover, .drawer-item.active {
-      background: rgba(56, 189, 248, 0.1);
-      border-color: rgba(56, 189, 248, 0.3);
-      color: var(--accent);
-    }
-
-    /* الحاوية الرئيسية */
-    main {
-      width: 100%;
-      max-width: 860px;
-      margin: 0 auto;
-      padding: 30px 16px;
-      display: flex;
-      flex-direction: column;
-      gap: 24px;
-    }
-
-    .hero-section {
-      text-align: center;
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-      margin-top: 10px;
-    }
-
-    .hero-section h1 {
-      font-size: 1.8rem;
-      font-weight: 700;
-      letter-spacing: -0.5px;
-    }
-
-    .hero-section p {
-      font-size: 1rem;
-      color: var(--text-muted);
-      max-width: 500px;
-      margin: 0 auto;
-      line-height: 1.5;
-    }
-
-    /* مربع البحث المركزي البارز */
-    .search-wrapper {
-      position: relative;
-      width: 100%;
-      max-width: 680px;
-      margin: 10px auto 0;
-    }
-
-    .search-input {
-      width: 100%;
-      background: var(--input-bg);
-      backdrop-filter: blur(10px);
-      border: 1px solid var(--card-border);
-      padding: 18px 56px 18px 24px;
-      border-radius: 18px;
-      font-size: 1.1rem;
-      color: var(--text-main);
-      outline: none;
-      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
-      transition: all 0.3s ease;
-    }
-
-    .search-input:focus {
-      border-color: var(--accent);
-      box-shadow: 0 0 0 4px rgba(56, 189, 248, 0.15);
-    }
-
-    .search-icon {
-      position: absolute;
-      right: 20px;
-      top: 50%;
-      transform: translateY(-50%);
-      width: 24px;
-      height: 24px;
-      stroke: var(--text-muted);
-    }
-
-    /* فلترة نوع الملف */
-    .filter-bar {
-      display: flex;
-      justify-content: center;
-      gap: 8px;
-      flex-wrap: wrap;
-      margin-top: 5px;
-    }
-
-    .filter-btn {
-      background: var(--card-bg);
-      border: 1px solid var(--card-border);
-      color: var(--text-muted);
-      padding: 7px 16px;
-      border-radius: 12px;
-      font-size: 0.85rem;
-      font-weight: 500;
-      cursor: pointer;
-    }
-
-    .filter-btn.active {
-      background: var(--primary);
-      border-color: var(--accent);
-      color: #ffffff;
-    }
-
-    /* قائمة المستندات */
-    .documents-list {
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
-      margin-top: 10px;
-    }
-
-    .doc-item {
-      background: var(--card-bg);
-      backdrop-filter: blur(12px);
-      border: 1px solid var(--card-border);
-      border-radius: 16px;
-      padding: 16px 20px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
-      transition: transform 0.2s, border-color 0.2s;
-    }
-
-    .doc-item:hover {
-      border-color: rgba(56, 189, 248, 0.4);
-      transform: translateY(-2px);
-    }
-
-    .doc-info {
-      display: flex;
-      align-items: center;
-      gap: 16px;
-      flex: 1;
-      overflow: hidden;
-    }
-
-    .doc-icon {
-      width: 48px;
-      height: 48px;
-      border-radius: 14px;
-      background: rgba(30, 58, 138, 0.2);
-      border: 1px solid rgba(56, 189, 248, 0.3);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      flex-shrink: 0;
-      font-weight: 700;
-      font-size: 0.85rem;
-    }
-
-    .doc-details {
-      display: flex;
-      flex-direction: column;
-      gap: 4px;
-      overflow: hidden;
-    }
-
-    .doc-title {
-      font-size: 1.02rem;
-      font-weight: 600;
-      color: var(--text-main);
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-
-    .doc-meta {
-      font-size: 0.8rem;
-      color: var(--text-muted);
-      display: flex;
-      gap: 14px;
-      align-items: center;
-    }
-
-    .badge-expiry {
-      background: rgba(245, 158, 11, 0.15);
-      color: var(--warning);
-      border: 1px solid rgba(245, 158, 11, 0.3);
-      padding: 2px 8px;
-      border-radius: 6px;
-      font-size: 0.75rem;
-      font-weight: 600;
-    }
-
-    .doc-actions {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-
-    .btn-action {
-      background: rgba(56, 189, 248, 0.1);
-      border: 1px solid rgba(56, 189, 248, 0.25);
-      color: var(--accent);
-      padding: 8px 14px;
-      border-radius: 10px;
-      font-size: 0.85rem;
-      font-weight: 600;
-      cursor: pointer;
-      text-decoration: none;
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      transition: background 0.2s;
-    }
-
-    .btn-action:hover {
-      background: rgba(56, 189, 248, 0.2);
-    }
-
-    .btn-copy {
-      background: var(--card-bg);
-      border: 1px solid var(--card-border);
-      color: var(--text-muted);
-      padding: 8px 10px;
-      border-radius: 10px;
-      cursor: pointer;
-    }
-
-    .btn-copy:hover {
-      color: var(--text-main);
-      border-color: var(--text-muted);
-    }
-
-    /* نافذة المعاينة */
-    .modal-overlay {
-      position: fixed;
-      inset: 0;
-      background: rgba(0, 0, 0, 0.85);
-      backdrop-filter: blur(8px);
-      z-index: 100;
-      display: none;
-      align-items: center;
-      justify-content: center;
-      padding: 16px;
-    }
-
-    .modal-overlay.active {
-      display: flex;
-    }
-
-    .modal-box {
-      background: var(--drawer-bg);
-      border: 1px solid var(--card-border);
-      width: 100%;
-      max-width: 840px;
-      height: 88vh;
-      border-radius: 20px;
-      display: flex;
-      flex-direction: column;
-      overflow: hidden;
-      box-shadow: 0 25px 50px rgba(0,0,0,0.5);
-    }
-
-    .modal-header {
-      padding: 16px 20px;
-      border-bottom: 1px solid var(--card-border);
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-
-    .modal-title {
-      font-size: 1.05rem;
-      font-weight: 600;
-    }
-
-    .close-btn {
-      background: transparent;
-      border: none;
-      color: var(--text-muted);
-      cursor: pointer;
-      font-size: 1.6rem;
-      line-height: 1;
-    }
-
-    .modal-body {
-      flex: 1;
-      background: var(--preview-bg);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      overflow: hidden;
-    }
-
-    .modal-body iframe {
-      width: 100%;
-      height: 100%;
-      border: none;
-    }
-  </style>
+  <link rel="manifest" href="./manifest.json" />
+  <link rel="stylesheet" href="./styles.css" />
 </head>
 <body>
-
-  <header>
-    <div class="brand">
-      <button class="menu-trigger-btn" id="menuBtn" title="فتح الأقسام">
-        📁
-      </button>
-      <div class="brand-title">مستنداتي</div>
+  <!-- شاشة القفل (PIN) -->
+  <div id="lockScreen" class="lock-screen hidden" aria-hidden="true">
+    <div class="lock-card">
+      <div class="brand-badge">
+        <i data-lucide="shield-check"></i>
+      </div>
+      <h2>مستنداتي</h2>
+      <p id="lockMessage">أدخل رمز المرور للمتابعة</p>
+      <div class="pin-dots" id="pinDots">
+        <span></span><span></span><span></span><span></span>
+      </div>
+      <div class="pin-keypad">
+        <button type="button" data-key="1">1</button>
+        <button type="button" data-key="2">2</button>
+        <button type="button" data-key="3">3</button>
+        <button type="button" data-key="4">4</button>
+        <button type="button" data-key="5">5</button>
+        <button type="button" data-key="6">6</button>
+        <button type="button" data-key="7">7</button>
+        <button type="button" data-key="8">8</button>
+        <button type="button" data-key="9">9</button>
+        <button type="button" class="empty" disabled></button>
+        <button type="button" data-key="0">0</button>
+        <button type="button" data-key="del" aria-label="حذف"><i data-lucide="delete"></i></button>
+      </div>
     </div>
-    <div class="header-actions">
-      <button class="theme-toggle-btn" id="themeToggleBtn">
-        <span id="themeIcon">☀️</span>
-        <span id="themeText">النهاري</span>
+  </div>
+
+  <!-- الشريط العلوي -->
+  <header class="app-header">
+    <div class="header-top">
+      <div class="brand">
+        <div class="brand-icon">
+          <i data-lucide="folder-lock"></i>
+        </div>
+        <div>
+          <h1>مستنداتي</h1>
+          <span id="syncStatusText" class="sync-subtitle">جاهز للعمل</span>
+        </div>
+      </div>
+
+      <div class="header-actions">
+        <span id="offlineBadge" class="badge badge-offline hidden">
+          <i data-lucide="wifi-off"></i> غير متصل
+        </span>
+        <button id="syncBtn" class="icon-btn" title="مزامنة الآن" aria-label="مزامنة الآن">
+          <i data-lucide="refresh-cw"></i>
+        </button>
+        <button id="authStatusBtn" class="auth-pill" title="حالة الاتصال بـ Google Drive">
+          <span class="dot"></span>
+          <span id="authBtnLabel">ربط Drive</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- شريط البحث الرئيسي -->
+    <div class="search-container">
+      <i data-lucide="search" class="search-icon"></i>
+      <input
+        type="search"
+        id="searchInput"
+        placeholder="ابحث بالاسم، التصنيف، أو الكلمات المفتاحية..."
+        autocomplete="off"
+      />
+      <button id="clearSearchBtn" class="clear-search hidden" aria-label="مسح البحث">
+        <i data-lucide="x"></i>
       </button>
     </div>
   </header>
 
-  <!-- القائمة المخفية الأقسام (Drawer) -->
-  <div class="drawer-overlay" id="drawerOverlay"></div>
-  <div class="drawer" id="sideDrawer">
-    <div class="drawer-header">
-      <div class="drawer-title">أقسام المستندات</div>
-      <button class="drawer-close" id="drawerClose">&times;</button>
-    </div>
-    <div class="drawer-menu" id="drawerMenu">
-      <button class="drawer-item active" data-folder="all">
-        <span>📁 جميع الملفات</span>
-        <span style="font-size:0.75rem; background:rgba(56,189,248,0.15); padding:2px 8px; border-radius:6px;" id="countAll">0</span>
-      </button>
-      <button class="drawer-item" data-folder="02 - شخصي">
-        <span>📁 02 - شخصي</span>
-        <span style="font-size:0.75rem; background:rgba(56,189,248,0.15); padding:2px 8px; border-radius:6px;" id="countPersonal">0</span>
-      </button>
-      <button class="drawer-item" data-folder="01 - العمل">
-        <span>📁 01 - العمل</span>
-        <span style="font-size:0.75rem; background:rgba(56,189,248,0.15); padding:2px 8px; border-radius:6px;" id="countWork">0</span>
-      </button>
-      <button class="drawer-item" data-folder="08-عقارات">
-        <span>📁 08-عقارات ومغاسل</span>
-        <span style="font-size:0.75rem; background:rgba(56,189,248,0.15); padding:2px 8px; border-radius:6px;" id="countRealestate">0</span>
-      </button>
-      <button class="drawer-item" data-folder="مقالات وبحوث">
-        <span>📁 مقالات وبحوث ومصاريف</span>
-        <span style="font-size:0.75rem; background:rgba(56,189,248,0.15); padding:2px 8px; border-radius:6px;" id="countArticles">0</span>
-      </button>
-    </div>
-  </div>
-
-  <main>
-    <div class="hero-section">
-      <h1>حفظ، تنظيم، وأمان مطلق</h1>
-      <p>خزانتك الشخصية المتكاملة لجميع الملفات والوثائق الرسمية والعملية المرتبطة بـ Google Drive</p>
-      
-      <div class="search-wrapper">
-        <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-        <input type="text" id="searchInput" class="search-input" placeholder="ابحث عن مستند، رقم، أو جهة...">
+  <!-- المحتوى الرئيسي -->
+  <main class="app-main">
+    <!-- تبويب الرئيسية -->
+    <section id="viewHome" class="view active">
+      <!-- شريط التنبيهات / قائمة الانتظار -->
+      <div id="queueBanner" class="queue-banner hidden">
+        <div class="queue-info">
+          <i data-lucide="clock"></i>
+          <span id="queueText">يوجد مستندات بانتظار المزامنة</span>
+        </div>
+        <button id="flushQueueBtn" class="btn-sm">رفع الآن</button>
       </div>
 
-      <div class="filter-bar" style="margin-top: 12px;">
-        <button class="filter-btn active" data-type="all">الكل</button>
-        <button class="filter-btn" data-type="pdf">PDF</button>
-        <button class="filter-btn" data-type="excel">Excel / شيت</button>
-        <button class="filter-btn" data-type="image">صور</button>
+      <!-- التصنيفات -->
+      <div class="section-header">
+        <h2>التصنيفات</h2>
+        <button id="manageCatsShortcut" class="text-btn">إدارة التصنيفات</button>
       </div>
-    </div>
+      <div id="categoriesGrid" class="categories-grid"></div>
 
-    <div class="documents-list" id="docsList"></div>
+      <!-- أحدث المستندات / نتائج البحث -->
+      <div class="section-header">
+        <h2 id="docsSectionTitle">أحدث المستندات</h2>
+        <span id="docsCountBadge" class="count-pill">0</span>
+      </div>
+      <div id="documentsList" class="documents-list"></div>
+    </section>
+
+    <!-- تبويب التصنيفات -->
+    <section id="viewCategories" class="view hidden">
+      <div class="section-header">
+        <h2>إدارة التصنيفات</h2>
+        <button id="addCategoryBtn" class="btn-primary btn-sm">
+          <i data-lucide="plus"></i> تصنيف جديد
+        </button>
+      </div>
+      <div id="categoriesManageList" class="manage-list"></div>
+    </section>
+
+    <!-- تبويب الإعدادات -->
+    <section id="viewSettings" class="view hidden">
+      <div class="settings-group">
+        <h3>الربط السحابي (Google Drive)</h3>
+        <div class="setting-card">
+          <label for="clientIdInput">معرف عميل Google (OAuth Client ID)</label>
+          <p class="hint">يُحفظ محلياً على جهازك فقط ولا يُنشر في الكود.</p>
+          <div class="input-row">
+            <input type="text" id="clientIdInput" dir="ltr" placeholder="xxxx.apps.googleusercontent.com" />
+            <button id="saveClientIdBtn" class="btn-primary">حفظ</button>
+          </div>
+        </div>
+
+        <div class="setting-card row-between">
+          <div>
+            <strong>حالة الحساب والمجلد</strong>
+            <p id="driveFolderInfo" class="hint">لم يتم الربط بعد</p>
+          </div>
+          <button id="connectDriveBtn" class="btn-secondary">تسجيل الدخول</button>
+        </div>
+
+        <div class="setting-card row-between">
+          <div>
+            <strong>المزامنة السحابية للفهرس</strong>
+            <p id="lastSyncDetail" class="hint">آخر مزامنة: لم تتم بعد</p>
+          </div>
+          <button id="manualSyncSettingsBtn" class="btn-secondary">مزامنة الآن</button>
+        </div>
+      </div>
+
+      <div class="settings-group">
+        <h3>الأمان والخصوصية</h3>
+        <div class="setting-card row-between">
+          <div>
+            <strong>قفل التطبيق برمز مرور (PIN)</strong>
+            <p class="hint">حماية الوصول للفهرس محلياً على الجهاز</p>
+          </div>
+          <button id="togglePinBtn" class="btn-secondary">تفعيل القفل</button>
+        </div>
+      </div>
+
+      <div class="settings-group">
+        <h3>المظهر والنسخ الاحتياطي</h3>
+        <div class="setting-card row-between">
+          <div>
+            <strong>المظهر الداكن</strong>
+            <p class="hint">تبديل بين الوضع الفاتح والداكن</p>
+          </div>
+          <button id="themeToggleBtn" class="btn-secondary">تبديل المظهر</button>
+        </div>
+
+        <div class="setting-card row-between">
+          <div>
+            <strong>نسخة احتياطية محلية (JSON)</strong>
+            <p class="hint">تصدير أو استيراد بيانات الفهرس يدوياً</p>
+          </div>
+          <div class="btn-group">
+            <button id="exportBackupBtn" class="btn-secondary btn-sm">تصدير</button>
+            <label class="btn-secondary btn-sm file-label">
+              استيراد
+              <input type="file" id="importBackupInput" accept="application/json" hidden />
+            </label>
+          </div>
+        </div>
+      </div>
+    </section>
   </main>
 
-  <div class="modal-overlay" id="previewModal">
-    <div class="modal-box">
+  <!-- زر الإضافة العائم -->
+  <button id="fabAddBtn" class="fab" aria-label="إضافة مستند جديد">
+    <i data-lucide="plus"></i>
+    <span>إضافة مستند</span>
+  </button>
+
+  <!-- شريط التنقل السفلي للآيفون -->
+  <nav class="bottom-nav" aria-label="التنقل الرئيسي">
+    <button class="nav-item active" data-target="viewHome">
+      <i data-lucide="home"></i>
+      <span>الرئيسية</span>
+    </button>
+    <button class="nav-item" data-target="viewCategories">
+      <i data-lucide="layers"></i>
+      <span>التصنيفات</span>
+    </button>
+    <button class="nav-item" data-target="viewSettings">
+      <i data-lucide="settings"></i>
+      <span>الإعدادات</span>
+    </button>
+  </nav>
+
+  <!-- نافذة إضافة مستند -->
+  <div id="addDocModal" class="modal hidden" role="dialog" aria-modal="true">
+    <div class="modal-sheet">
       <div class="modal-header">
-        <div class="modal-title" id="previewTitle">معاينة المستند</div>
-        <button class="close-btn" id="closePreviewBtn">&times;</button>
+        <h3>إضافة مستند جديد</h3>
+        <button class="icon-btn close-modal" data-modal="addDocModal"><i data-lucide="x"></i></button>
       </div>
-      <div class="modal-body" id="previewContainer"></div>
+
+      <div class="mode-tabs">
+        <button type="button" class="mode-tab active" data-mode="upload">رفع ملف أو تصوير</button>
+        <button type="button" class="mode-tab" data-mode="link">رابط Drive موجود</button>
+      </div>
+
+      <form id="addDocForm">
+        <!-- وضع الرفع -->
+        <div id="uploadModeFields">
+          <div class="upload-dropzone" id="filePickerArea">
+            <i data-lucide="upload-cloud"></i>
+            <p id="selectedFileName">اختر ملف PDF أو صورة، أو التقط بالكاميرا</p>
+            <div class="picker-buttons">
+              <label class="btn-secondary btn-sm">
+                <i data-lucide="file-up"></i> اختيار ملف
+                <input type="file" id="docFileInput" accept="application/pdf,image/*" hidden />
+              </label>
+              <label class="btn-secondary btn-sm">
+                <i data-lucide="camera"></i> الكاميرا
+                <input type="file" id="cameraInput" accept="image/*" capture="environment" hidden />
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <!-- وضع الرابط اليدوي -->
+        <div id="linkModeFields" class="hidden">
+          <div class="form-group">
+            <label for="manualDriveUrl">رابط الملف في Google Drive</label>
+            <input type="url" id="manualDriveUrl" dir="ltr" placeholder="https://drive.google.com/file/d/..." />
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="docTitleInput">اسم المستند *</label>
+          <input type="text" id="docTitleInput" required placeholder="مثال: الهوية الوطنية، صك المنزل..." />
+        </div>
+
+        <div class="form-group">
+          <label for="docCategorySelect">التصنيف *</label>
+          <select id="docCategorySelect" required></select>
+        </div>
+
+        <div class="form-group">
+          <label for="docKeywordsInput">كلمات مفتاحية أو ملاحظات (اختياري)</label>
+          <input type="text" id="docKeywordsInput" placeholder="رقم الوثيقة، تاريخ الانتهاء، ملاحظة..." />
+        </div>
+
+        <div id="uploadProgressBox" class="progress-box hidden">
+          <div class="progress-bar"><div id="uploadProgressFill" class="progress-fill"></div></div>
+          <span id="uploadProgressText">جاري الرفع إلى Google Drive...</span>
+        </div>
+
+        <button type="submit" id="submitDocBtn" class="btn-primary btn-full">حفظ ورفع المستند</button>
+      </form>
     </div>
   </div>
 
-  <script>
-    let documents = [
-      { id: '1', title: 'الهوية الوطنية', folder: '02 - شخصي', type: 'pdf', date: '2026-09-28', size: '1.2 MB', copyText: '1060432000', expiry: 'ينتهي قريباً: 01/08/2029', url: 'https://drive.google.com/file/d/1GlmTx0RLnrfvuPjJ8YaXQDT-6CMh00q_/preview' },
-      { id: '2', title: 'جواز السفر _2031', folder: '02 - شخصي', type: 'pdf', date: '2026-09-30', size: '3.3 MB', copyText: 'Y850804', expiry: '', url: 'https://drive.google.com/file/d/1g5h1C_0Bv17iew06clOVS8aL_SSdj9Bt/preview' },
-      { id: '3', title: 'بطاقات وأرقام الحسابات البنكية (الآيبان)', folder: '02 - شخصي', type: 'image', date: '2026-09-28', size: '2.2 MB', copyText: 'SA5915000723110709160007', expiry: '', url: 'https://drive.google.com/file/d/1KYS9u9WNMUh-Rqba6Vy5UNcQ2CBtVQy_/preview' },
-      { id: '4', title: 'محضر إحالة التسوية الودية (قضية استحقاق درجة)', folder: '02 - شخصي', type: 'pdf', date: '2026-11-08', size: '481 KB', copyText: '126489', expiry: '', url: 'https://drive.google.com/file/d/14oPhyn1TLT3ZunOzX7iXwF0b4rlWcTqZ/preview' },
-      { id: '5', title: 'بيان خدمة وظيفية 2026', folder: '02 - شخصي', type: 'pdf', date: '2026-11-04', size: '64 KB', copyText: '64073', expiry: '', url: 'https://drive.google.com/file/d/1C2PRElvsthFpDRUJIQ3ietozfY8sQwWi/preview' },
-      { id: '6', title: 'شهادة ترخيص مكافحة العدوى (بكسل BICSL)', folder: '02 - شخصي', type: 'pdf', date: '2026-09-23', size: '279 KB', copyText: 'C-B0000411436-1', expiry: 'ينتهي قريباً: 10/03/2027', url: 'https://drive.google.com/file/d/1WDAVVVtfBABCLJqQxZqiopjiJlTEpE-C/preview' },
-      { id: '7', title: 'قرار التعيين المعتمد', folder: '01 - العمل', type: 'pdf', date: '2026-09-30', size: '453 KB', copyText: '21838', expiry: '', url: 'https://drive.google.com/file/d/1evzh8eIVqr9Ie8TouFBLGodIQtiPQfhB/preview' },
-      { id: '8', title: 'إقرار صرف بدل العمل في المستشفيات النفسية 2026', folder: '01 - العمل', type: 'pdf', date: '2026-10-04', size: '1.3 MB', copyText: '', expiry: '', url: 'https://drive.google.com/file/d/1yW84NAmQqjFKOdlLmUTVKJdu2FPEHFe6/preview' },
-      { id: '9', title: 'وثيقة تأمين المسؤولية المهنية الطبية (3 سنوات)', folder: '01 - العمل', type: 'pdf', date: '2026-10-27', size: '332 KB', copyText: '651441360', expiry: 'ينتهي قريباً: 27/10/2029', url: 'https://drive.google.com/file/d/15a9VV8-hh7bPqO7khu-uiLUWK-rEyfSb/preview' },
-      { id: '10', title: 'سجل متابعة طلبات التأمين الطبي (الشيت السحابي)', folder: '01 - العمل', type: 'excel', date: '2026-11-06', size: 'شيت سحابي', copyText: '', expiry: '', url: 'https://docs.google.com/spreadsheets/d/135L6yG_lk5HPj77mZbUqv3-oZNWWd4T5N6yR6hX3Wk0/htmlembed' },
-      { id: '11', title: 'السجل التجاري لمؤسسة روما الذهبية', folder: '08-عقارات', type: 'image', date: '2026-10-19', size: '77 KB', copyText: '7016682465', expiry: '', url: 'https://drive.google.com/file/d/1TMiGcd00zCQJStrDMXUSvv8piGfC2KNE/preview' },
-      { id: '12', title: 'كشف حساب جاري - مؤسسة روما الذهبية للغسيل', folder: '08-عقارات', type: 'pdf', date: '2026-11-01', size: '214 KB', copyText: '598608016100214', expiry: '', url: 'https://drive.google.com/file/d/1Rh1q_LN_ruK3UbSmHWw_zJc9uCC6rAmj/preview' },
-      { id: '13', title: 'رخصة إنشاء موقع شوران', folder: '08-عقارات', type: 'image', date: '2026-10-19', size: '103 KB', copyText: '4201083', expiry: '', url: 'https://drive.google.com/file/d/1FN2n3FIfQhIHn52GuBd-Kn2s8y_IBuHK/preview' },
-      { id: '14', title: 'نموذج اللوحة الإرشادية المعتمدة - منصة بلدي', folder: '08-عقارات', type: 'pdf', date: '2026-10-25', size: '380 KB', copyText: '4201083', expiry: '', url: 'https://drive.google.com/file/d/1m-GjKjduA4jXAj-sfqRugt1XPIpvhS6y/preview' },
-      { id: '15', title: 'لوحة متابعة أسعار الشقق والفرص العقارية', folder: '08-عقارات', type: 'excel', date: '2026-11-07', size: 'شيت سحابي', copyText: '', expiry: '', url: 'https://docs.google.com/spreadsheets/d/19lEW-bKY-mnjmxq61BM-WJdrK_YNEPAHhwLcYYMt0b8/htmlembed' },
-      { id: '16', title: 'التقرير الاستراتيجي الشامل - الملف اليمني وعاصفة الحزم', folder: 'مقالات وبحوث', type: 'pdf', date: '2026-10-14', size: '254 KB', copyText: '', expiry: '', url: 'https://drive.google.com/file/d/1-gewbTkk1oSItRI_MtFGyAbn9Bwrsavh/preview' },
-      { id: '17', title: 'بيان تكاليف دراسة الماجستير في مصر', folder: 'مقالات وبحوث', type: 'image', date: '2026-10-25', size: '1.0 MB', copyText: '', expiry: '', url: 'https://drive.google.com/file/d/1KbBrCOc3hKOLHLJ8OGS_NYlABAG9fhbu/preview' }
-    ];
+  <!-- نافذة تعديل/نقل مستند -->
+  <div id="editDocModal" class="modal hidden" role="dialog" aria-modal="true">
+    <div class="modal-sheet">
+      <div class="modal-header">
+        <h3>تعديل بيانات المستند</h3>
+        <button class="icon-btn close-modal" data-modal="editDocModal"><i data-lucide="x"></i></button>
+      </div>
+      <form id="editDocForm">
+        <input type="hidden" id="editDocId" />
+        <div class="form-group">
+          <label for="editDocTitle">اسم المستند</label>
+          <input type="text" id="editDocTitle" required />
+        </div>
+        <div class="form-group">
+          <label for="editDocCategory">نقل إلى تصنيف</label>
+          <select id="editDocCategory" required></select>
+        </div>
+        <div class="form-group">
+          <label for="editDocKeywords">الكلمات المفتاحية والملاحظات</label>
+          <input type="text" id="editDocKeywords" />
+        </div>
+        <div class="modal-footer-actions">
+          <button type="button" id="deleteDocBtn" class="btn-danger">حذف من الفهرس</button>
+          <button type="submit" class="btn-primary">حفظ التعديلات</button>
+        </div>
+      </form>
+    </div>
+  </div>
 
-    let currentFolder = 'all';
-    let currentType = 'all';
-    let searchQuery = '';
+  <!-- إشعارات عائمة Toast -->
+  <div id="toastContainer" class="toast-container" aria-live="polite"></div>
 
-    const docsList = document.getElementById('docsList');
-    const searchInput = document.getElementById('searchInput');
-    const filterBtns = document.querySelectorAll('.filter-btn');
-
-    const previewModal = document.getElementById('previewModal');
-    const previewTitle = document.getElementById('previewTitle');
-    const previewContainer = document.getElementById('previewContainer');
-    const closePreviewBtn = document.getElementById('closePreviewBtn');
-
-    // القائمة الجانبية
-    const menuBtn = document.getElementById('menuBtn');
-    const sideDrawer = document.getElementById('sideDrawer');
-    const drawerOverlay = document.getElementById('drawerOverlay');
-    const drawerClose = document.getElementById('drawerClose');
-    const drawerItems = document.querySelectorAll('.drawer-item');
-
-    function toggleDrawer(open) {
-      if (open) {
-        sideDrawer.classList.add('active');
-        drawerOverlay.classList.add('active');
-      } else {
-        sideDrawer.classList.remove('active');
-        drawerOverlay.classList.remove('active');
-      }
-    }
-
-    menuBtn.addEventListener('click', () => toggleDrawer(true));
-    drawerClose.addEventListener('click', () => toggleDrawer(false));
-    drawerOverlay.addEventListener('click', () => toggleDrawer(false));
-
-    drawerItems.forEach(item => {
-      item.addEventListener('click', () => {
-        drawerItems.forEach(i => i.classList.remove('active'));
-        item.classList.add('active');
-        currentFolder = item.dataset.folder;
-        toggleDrawer(false);
-        renderDocuments();
-      });
-    });
-
-    // تحديث العدادات
-    function updateCounters() {
-      document.getElementById('countAll').textContent = documents.length;
-      document.getElementById('countPersonal').textContent = documents.filter(d => d.folder === '02 - شخصي').length;
-      document.getElementById('countWork').textContent = documents.filter(d => d.folder === '01 - العمل').length;
-      document.getElementById('countRealestate').textContent = documents.filter(d => d.folder === '08-عقارات').length;
-      document.getElementById('countArticles').textContent = documents.filter(d => d.folder === 'مقالات وبحوث').length;
-    }
-
-    // الثيم
-    const themeToggleBtn = document.getElementById('themeToggleBtn');
-    const themeIcon = document.getElementById('themeIcon');
-    const themeText = document.getElementById('themeText');
-
-    function applyTheme(isLight) {
-      if (isLight) {
-        document.body.classList.add('light-mode');
-        themeIcon.textContent = '🌙';
-        themeText.textContent = 'الليلي';
-        localStorage.setItem('mostanadati-theme', 'light');
-      } else {
-        document.body.classList.remove('light-mode');
-        themeIcon.textContent = '☀️';
-        themeText.textContent = 'النهاري';
-        localStorage.setItem('mostanadati-theme', 'dark');
-      }
-    }
-
-    if (localStorage.getItem('mostanadati-theme') === 'light') applyTheme(true);
-
-    themeToggleBtn.addEventListener('click', () => {
-      applyTheme(!document.body.classList.contains('light-mode'));
-    });
-
-    function renderDocuments() {
-      docsList.innerHTML = '';
-
-      const filtered = documents.filter(doc => {
-        const matchesFolder = (currentFolder === 'all') || (doc.folder === currentFolder);
-        const matchesType = (currentType === 'all') || (doc.type === currentType);
-        const matchesSearch = doc.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                              doc.folder.toLowerCase().includes(searchQuery.toLowerCase());
-        return matchesFolder && matchesType && matchesSearch;
-      });
-
-      if (filtered.length === 0) {
-        docsList.innerHTML = `
-          <div style="text-align: center; padding: 40px; color: var(--text-muted);">
-            لا توجد مستندات مطابقة للبحث
-          </div>
-        `;
-        return;
-      }
-
-      filtered.forEach(doc => {
-        let typeBadge = doc.type.toUpperCase();
-        if(doc.type === 'excel') typeBadge = 'XLS';
-        if(doc.type === 'image') typeBadge = 'IMG';
-
-        const item = document.createElement('div');
-        item.className = 'doc-item';
-        item.innerHTML = `
-          <div class="doc-info" onclick="openPreview('${doc.id}')" style="cursor: pointer;">
-            <div class="doc-icon">${typeBadge}</div>
-            <div class="doc-details">
-              <div class="doc-title">${doc.title}</div>
-              <div class="doc-meta">
-                <span>📁 ${doc.folder}</span>
-                <span>📦 ${doc.size}</span>
-                ${doc.expiry ? `<span class="badge-expiry">⚠️ ${doc.expiry}</span>` : ''}
-              </div>
-            </div>
-          </div>
-          <div class="doc-actions">
-            ${doc.copyText ? `<button class="btn-copy" title="نسخ البيانات السريعة" onclick="copyText('${doc.copyText}')">📋</button>` : ''}
-            <button class="btn-action" onclick="openPreview('${doc.id}')">معاينة</button>
-            <a href="${doc.url.replace('/preview', '/view')}" target="_blank" class="btn-action" style="background: rgba(16,185,129,0.15); border-color: rgba(16,185,129,0.3); color: var(--success);">مشاركة Drive</a>
-          </div>
-        `;
-        docsList.appendChild(item);
-      });
-    }
-
-    window.copyText = function(text) {
-      navigator.clipboard.writeText(text).then(() => {
-        alert('تم نسخ النص بنجاح: ' + text);
-      });
-    };
-
-    window.openPreview = function(id) {
-      const doc = documents.find(d => d.id === id);
-      if (!doc) return;
-
-      previewTitle.textContent = doc.title;
-      previewContainer.innerHTML = `<iframe src="${doc.url}"></iframe>`;
-      previewModal.classList.add('active');
-    };
-
-    closePreviewBtn.addEventListener('click', () => {
-      previewModal.classList.remove('active');
-      previewContainer.innerHTML = '';
-    });
-
-    filterBtns.forEach(btn => {
-      btn.addEventListener('click', () => {
-        filterBtns.forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
-        currentType = btn.dataset.type;
-        renderDocuments();
-      });
-    });
-
-    searchInput.addEventListener('input', (e) => {
-      searchQuery = e.target.value.trim();
-      renderDocuments();
-    });
-
-    updateCounters();
-    renderDocuments();
-  </script>
+  <script type="module" src="./app.js"></script>
 </body>
 </html>
