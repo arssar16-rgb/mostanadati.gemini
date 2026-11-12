@@ -1,324 +1,145 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="ar" dir="rtl">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
-  <meta name="theme-color" content="#0B192C" />
-  <meta name="apple-mobile-web-app-capable" content="yes" />
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <meta name="apple-mobile-web-app-title" content="مستنداتي" />
-  <title>مستنداتي | الأرشيف الشخصي الذكي</title>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#132f35">
+  <title>مستنداتي — ابحث وافتح</title>
 
-  <!-- الخط العربي الاحترافي -->
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="./styles.css">
 
-  <!-- أيقونات Lucide النظيفة -->
-  <script src="https://unpkg.com/lucide@latest"></script>
-  <!-- مكتبة Google Identity Services -->
-  <script src="https://accounts.google.com/gsi/client" async defer></script>
+  <script
+    src="https://accounts.google.com/gsi/client"
+    async
+    defer
+  ></script>
 
-  <link rel="manifest" href="./manifest.json" />
-  <link rel="stylesheet" href="./styles.css" />
+  <script src="./app.js" type="module"></script>
 </head>
+
 <body>
-  <!-- شاشة القفل (PIN) -->
-  <div id="lockScreen" class="lock-screen hidden" aria-hidden="true">
-    <div class="lock-card">
-      <div class="brand-badge">
-        <i data-lucide="shield-check"></i>
-      </div>
-      <h2>مستنداتي</h2>
-      <p id="lockMessage">أدخل رمز المرور للمتابعة</p>
-      <div class="pin-dots" id="pinDots">
-        <span></span><span></span><span></span><span></span>
-      </div>
-      <div class="pin-keypad">
-        <button type="button" data-key="1">1</button>
-        <button type="button" data-key="2">2</button>
-        <button type="button" data-key="3">3</button>
-        <button type="button" data-key="4">4</button>
-        <button type="button" data-key="5">5</button>
-        <button type="button" data-key="6">6</button>
-        <button type="button" data-key="7">7</button>
-        <button type="button" data-key="8">8</button>
-        <button type="button" data-key="9">9</button>
-        <button type="button" class="empty" disabled></button>
-        <button type="button" data-key="0">0</button>
-        <button type="button" data-key="del" aria-label="حذف"><i data-lucide="delete"></i></button>
-      </div>
-    </div>
-  </div>
+  <div class="shell">
+    <aside>
+      <a class="brand" href="./">
+        <span class="logo">م</span>
+        مستنداتي
+      </a>
 
-  <!-- الشريط العلوي -->
-  <header class="app-header">
-    <div class="header-top">
-      <div class="brand">
-        <div class="brand-icon">
-          <i data-lucide="folder-lock"></i>
-        </div>
-        <div>
-          <h1>مستنداتي</h1>
-          <span id="syncStatusText" class="sync-subtitle">جاهز للعمل</span>
-        </div>
-      </div>
+      <p class="tag">مساحة أوضح لملفاتك</p>
 
-      <div class="header-actions">
-        <span id="offlineBadge" class="badge badge-offline hidden">
-          <i data-lucide="wifi-off"></i> غير متصل
-        </span>
-        <button id="syncBtn" class="icon-btn" title="مزامنة الآن" aria-label="مزامنة الآن">
-          <i data-lucide="refresh-cw"></i>
-        </button>
-        <button id="authStatusBtn" class="auth-pill" title="حالة الاتصال بـ Google Drive">
-          <span class="dot"></span>
-          <span id="authBtnLabel">ربط Drive</span>
-        </button>
-      </div>
-    </div>
-
-    <!-- شريط البحث الرئيسي -->
-    <div class="search-container">
-      <i data-lucide="search" class="search-icon"></i>
-      <input
-        type="search"
-        id="searchInput"
-        placeholder="ابحث بالاسم، التصنيف، أو الكلمات المفتاحية..."
-        autocomplete="off"
-      />
-      <button id="clearSearchBtn" class="clear-search hidden" aria-label="مسح البحث">
-        <i data-lucide="x"></i>
+      <button class="nav selected" id="homeBtn">
+        ▦ جميع الملفات
       </button>
-    </div>
-  </header>
 
-  <!-- المحتوى الرئيسي -->
-  <main class="app-main">
-    <!-- تبويب الرئيسية -->
-    <section id="viewHome" class="view active">
-      <!-- شريط التنبيهات / قائمة الانتظار -->
-      <div id="queueBanner" class="queue-banner hidden">
-        <div class="queue-info">
-          <i data-lucide="clock"></i>
-          <span id="queueText">يوجد مستندات بانتظار المزامنة</span>
-        </div>
-        <button id="flushQueueBtn" class="btn-sm">رفع الآن</button>
+      <button class="nav" id="settingsBtn">
+        ⚙ إعدادات الاتصال
+      </button>
+
+      <div class="privacy">
+        <span>◈ قراءة فقط</span>
+        <p>
+          نبحث في أسماء ملفاتك.<br>
+          تبقى مستنداتك في Google Drive.
+        </p>
       </div>
+    </aside>
 
-      <!-- التصنيفات -->
-      <div class="section-header">
-        <h2>التصنيفات</h2>
-        <button id="manageCatsShortcut" class="text-btn">إدارة التصنيفات</button>
-      </div>
-      <div id="categoriesGrid" class="categories-grid"></div>
+    <main>
+      <header>
+        <span class="eyebrow">أرشيفك، أقرب إليك</span>
 
-      <!-- أحدث المستندات / نتائج البحث -->
-      <div class="section-header">
-        <h2 id="docsSectionTitle">أحدث المستندات</h2>
-        <span id="docsCountBadge" class="count-pill">0</span>
-      </div>
-      <div id="documentsList" class="documents-list"></div>
-    </section>
-
-    <!-- تبويب التصنيفات -->
-    <section id="viewCategories" class="view hidden">
-      <div class="section-header">
-        <h2>إدارة التصنيفات</h2>
-        <button id="addCategoryBtn" class="btn-primary btn-sm">
-          <i data-lucide="plus"></i> تصنيف جديد
+        <button id="connectBtn" class="primary">
+          ربط Google Drive
         </button>
-      </div>
-      <div id="categoriesManageList" class="manage-list"></div>
-    </section>
+      </header>
 
-    <!-- تبويب الإعدادات -->
-    <section id="viewSettings" class="view hidden">
-      <div class="settings-group">
-        <h3>الربط السحابي (Google Drive)</h3>
-        <div class="setting-card">
-          <label for="clientIdInput">معرف عميل Google (OAuth Client ID)</label>
-          <p class="hint">يُحفظ محلياً على جهازك فقط ولا يُنشر في الكود.</p>
-          <div class="input-row">
-            <input type="text" id="clientIdInput" dir="ltr" placeholder="xxxx.apps.googleusercontent.com" />
-            <button id="saveClientIdBtn" class="btn-primary">حفظ</button>
-          </div>
+      <section class="intro">
+        <span class="kicker">مستنداتي / البحث</span>
+
+        <h1>
+          كل ملفاتك.<br>
+          <em>في مكان يسهل الوصول إليه.</em>
+        </h1>
+
+        <p>
+          اكتب جزءًا من اسم الملف، وافتحه مباشرة في Google Drive.
+        </p>
+      </section>
+
+      <section class="search-panel">
+        <label for="searchInput">ما الذي تبحث عنه؟</label>
+
+        <div class="search-row">
+          <span aria-hidden="true">⌕</span>
+
+          <input
+            id="searchInput"
+            type="search"
+            placeholder="اسم مستند، شهادة، عقد…"
+            autocomplete="off"
+          >
+
+          <button id="refreshBtn" title="تحديث من Drive">
+            تحديث
+          </button>
         </div>
 
-        <div class="setting-card row-between">
-          <div>
-            <strong>حالة الحساب والمجلد</strong>
-            <p id="driveFolderInfo" class="hint">لم يتم الربط بعد</p>
-          </div>
-          <button id="connectDriveBtn" class="btn-secondary">تسجيل الدخول</button>
+        <div
+          id="filters"
+          class="filters"
+          aria-label="نوع الملف"
+        ></div>
+      </section>
+
+      <section id="settings" hidden>
+        <h2>إعداد الاتصال</h2>
+
+        <label for="clientId">
+          معرّف عميل Google OAuth
+        </label>
+
+        <div class="config-row">
+          <input
+            id="clientId"
+            dir="ltr"
+            placeholder="…apps.googleusercontent.com"
+          >
+
+          <button id="saveBtn" class="primary">
+            حفظ
+          </button>
         </div>
 
-        <div class="setting-card row-between">
-          <div>
-            <strong>المزامنة السحابية للفهرس</strong>
-            <p id="lastSyncDetail" class="hint">آخر مزامنة: لم تتم بعد</p>
-          </div>
-          <button id="manualSyncSettingsBtn" class="btn-secondary">مزامنة الآن</button>
-        </div>
-      </div>
+        <p>
+          يُحفظ المعرّف في هذا المتصفح فقط.
+          لا تحتاج إلى Client Secret أو API Key.
+        </p>
 
-      <div class="settings-group">
-        <h3>الأمان والخصوصية</h3>
-        <div class="setting-card row-between">
-          <div>
-            <strong>قفل التطبيق برمز مرور (PIN)</strong>
-            <p class="hint">حماية الوصول للفهرس محلياً على الجهاز</p>
-          </div>
-          <button id="togglePinBtn" class="btn-secondary">تفعيل القفل</button>
-        </div>
-      </div>
+        <button id="disconnectBtn">
+          تسجيل الخروج من التطبيق
+        </button>
+      </section>
 
-      <div class="settings-group">
-        <h3>المظهر والنسخ الاحتياطي</h3>
-        <div class="setting-card row-between">
-          <div>
-            <strong>المظهر الداكن</strong>
-            <p class="hint">تبديل بين الوضع الفاتح والداكن</p>
-          </div>
-          <button id="themeToggleBtn" class="btn-secondary">تبديل المظهر</button>
-        </div>
-
-        <div class="setting-card row-between">
-          <div>
-            <strong>نسخة احتياطية محلية (JSON)</strong>
-            <p class="hint">تصدير أو استيراد بيانات الفهرس يدوياً</p>
-          </div>
-          <div class="btn-group">
-            <button id="exportBackupBtn" class="btn-secondary btn-sm">تصدير</button>
-            <label class="btn-secondary btn-sm file-label">
-              استيراد
-              <input type="file" id="importBackupInput" accept="application/json" hidden />
-            </label>
-          </div>
-        </div>
-      </div>
-    </section>
-  </main>
-
-  <!-- زر الإضافة العائم -->
-  <button id="fabAddBtn" class="fab" aria-label="إضافة مستند جديد">
-    <i data-lucide="plus"></i>
-    <span>إضافة مستند</span>
-  </button>
-
-  <!-- شريط التنقل السفلي للآيفون -->
-  <nav class="bottom-nav" aria-label="التنقل الرئيسي">
-    <button class="nav-item active" data-target="viewHome">
-      <i data-lucide="home"></i>
-      <span>الرئيسية</span>
-    </button>
-    <button class="nav-item" data-target="viewCategories">
-      <i data-lucide="layers"></i>
-      <span>التصنيفات</span>
-    </button>
-    <button class="nav-item" data-target="viewSettings">
-      <i data-lucide="settings"></i>
-      <span>الإعدادات</span>
-    </button>
-  </nav>
-
-  <!-- نافذة إضافة مستند -->
-  <div id="addDocModal" class="modal hidden" role="dialog" aria-modal="true">
-    <div class="modal-sheet">
-      <div class="modal-header">
-        <h3>إضافة مستند جديد</h3>
-        <button class="icon-btn close-modal" data-modal="addDocModal"><i data-lucide="x"></i></button>
+      <div class="results-heading">
+        <h2 id="resultsTitle">ملفاتك</h2>
+        <span id="count">0 ملف</span>
       </div>
 
-      <div class="mode-tabs">
-        <button type="button" class="mode-tab active" data-mode="upload">رفع ملف أو تصوير</button>
-        <button type="button" class="mode-tab" data-mode="link">رابط Drive موجود</button>
-      </div>
+      <p id="status" role="status" aria-live="polite">
+        اربط حسابك لبدء البحث.
+      </p>
 
-      <form id="addDocForm">
-        <!-- وضع الرفع -->
-        <div id="uploadModeFields">
-          <div class="upload-dropzone" id="filePickerArea">
-            <i data-lucide="upload-cloud"></i>
-            <p id="selectedFileName">اختر ملف PDF أو صورة، أو التقط بالكاميرا</p>
-            <div class="picker-buttons">
-              <label class="btn-secondary btn-sm">
-                <i data-lucide="file-up"></i> اختيار ملف
-                <input type="file" id="docFileInput" accept="application/pdf,image/*" hidden />
-              </label>
-              <label class="btn-secondary btn-sm">
-                <i data-lucide="camera"></i> الكاميرا
-                <input type="file" id="cameraInput" accept="image/*" capture="environment" hidden />
-              </label>
-            </div>
-          </div>
-        </div>
+      <div id="results" class="results"></div>
 
-        <!-- وضع الرابط اليدوي -->
-        <div id="linkModeFields" class="hidden">
-          <div class="form-group">
-            <label for="manualDriveUrl">رابط الملف في Google Drive</label>
-            <input type="url" id="manualDriveUrl" dir="ltr" placeholder="https://drive.google.com/file/d/..." />
-          </div>
-        </div>
+      <button id="moreBtn" hidden>
+        عرض المزيد
+      </button>
 
-        <div class="form-group">
-          <label for="docTitleInput">اسم المستند *</label>
-          <input type="text" id="docTitleInput" required placeholder="مثال: الهوية الوطنية، صك المنزل..." />
-        </div>
-
-        <div class="form-group">
-          <label for="docCategorySelect">التصنيف *</label>
-          <select id="docCategorySelect" required></select>
-        </div>
-
-        <div class="form-group">
-          <label for="docKeywordsInput">كلمات مفتاحية أو ملاحظات (اختياري)</label>
-          <input type="text" id="docKeywordsInput" placeholder="رقم الوثيقة، تاريخ الانتهاء، ملاحظة..." />
-        </div>
-
-        <div id="uploadProgressBox" class="progress-box hidden">
-          <div class="progress-bar"><div id="uploadProgressFill" class="progress-fill"></div></div>
-          <span id="uploadProgressText">جاري الرفع إلى Google Drive...</span>
-        </div>
-
-        <button type="submit" id="submitDocBtn" class="btn-primary btn-full">حفظ ورفع المستند</button>
-      </form>
-    </div>
+      <footer>
+        <span>مستنداتي</span>
+        <span>بيانات الملفات فقط · دون رفع أو تعديل أو حذف</span>
+      </footer>
+    </main>
   </div>
-
-  <!-- نافذة تعديل/نقل مستند -->
-  <div id="editDocModal" class="modal hidden" role="dialog" aria-modal="true">
-    <div class="modal-sheet">
-      <div class="modal-header">
-        <h3>تعديل بيانات المستند</h3>
-        <button class="icon-btn close-modal" data-modal="editDocModal"><i data-lucide="x"></i></button>
-      </div>
-      <form id="editDocForm">
-        <input type="hidden" id="editDocId" />
-        <div class="form-group">
-          <label for="editDocTitle">اسم المستند</label>
-          <input type="text" id="editDocTitle" required />
-        </div>
-        <div class="form-group">
-          <label for="editDocCategory">نقل إلى تصنيف</label>
-          <select id="editDocCategory" required></select>
-        </div>
-        <div class="form-group">
-          <label for="editDocKeywords">الكلمات المفتاحية والملاحظات</label>
-          <input type="text" id="editDocKeywords" />
-        </div>
-        <div class="modal-footer-actions">
-          <button type="button" id="deleteDocBtn" class="btn-danger">حذف من الفهرس</button>
-          <button type="submit" class="btn-primary">حفظ التعديلات</button>
-        </div>
-      </form>
-    </div>
-  </div>
-
-  <!-- إشعارات عائمة Toast -->
-  <div id="toastContainer" class="toast-container" aria-live="polite"></div>
-
-  <script type="module" src="./app.js"></script>
 </body>
 </html>
