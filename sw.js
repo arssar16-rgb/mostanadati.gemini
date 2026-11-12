@@ -1,4 +1,4 @@
-const CACHE_NAME = 'mostanadati-shell-v1';
+const CACHE_NAME = 'mostanadati-shell-v2';
 const APP_SHELL = [
   './',
   './index.html',
