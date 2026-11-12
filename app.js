@@ -1,6 +1,5 @@
 // ============================================================================
-// تطبيق «مستنداتي» - المحرك الرئيسي
-// يدعم العمل دون إنترنت (IndexedDB)، قائمة الانتظار، وGoogle Drive API v3
+// تطبيق «مستنداتي» - المحرك الرئيسي المحدّث
 // ============================================================================
 
 const DB_NAME = 'MostanadatiDB';
@@ -17,14 +16,14 @@ const DEFAULT_CATEGORIES = [
   { id: 'cat_edu', name: 'الشهادات والتعليم', icon: 'graduation-cap', updatedAt: 1 },
   { id: 'cat_med', name: 'المستندات الطبية', icon: 'heart-pulse', updatedAt: 1 },
   { id: 'cat_contract', name: 'العقود والاتفاقيات', icon: 'file-signature', updatedAt: 1 },
-  { id: 'cat_other', name: 'مستندا أخرى', icon: 'folder', updatedAt: 1 }
+  { id: 'cat_other', name: 'مستندات أخرى', icon: 'folder', updatedAt: 1 }
 ];
 
-// حالة التطبيق في الذاكرة الحية (لا يتم تخزين التوكن في localStorage إطلاقاً)
 const state = {
   accessToken: null,
   tokenExpiry: 0,
   tokenClient: null,
+  isSyncing: false,
   activeCategory: 'all',
   searchQuery: '',
   selectedFile: null,
@@ -96,7 +95,7 @@ async function dbDelete(store, key) {
 }
 
 // ============================================================================
-// 2. المصادقة الآمنة عبر Google Identity Services (OAuth 2.0)
+// 2. المصادقة عبر Google Identity Services (OAuth 2.0)
 // ============================================================================
 function getClientId() {
   return localStorage.getItem('mostanadati_client_id') || '';
@@ -111,12 +110,14 @@ function initGoogleAuth() {
     scope: DRIVE_SCOPE,
     callback: async (resp) => {
       if (resp.error) {
-        showToast('تعذر إتمام تسجيل الدخول في Google');
+        updateAuthUI(false);
+        showToast(`خطأ في الدخول: ${resp.error}`);
         return;
       }
       state.accessToken = resp.access_token;
       state.tokenExpiry = Date.now() + (Number(resp.expires_in || 3500) * 1000);
       updateAuthUI(true);
+      document.getElementById('syncStatusText').textContent = 'متصل بحساب Drive';
       showToast('تم الاتصال بحساب Google Drive بنجاح');
       await processOutboxQueue();
       await syncWithGoogleDrive();
@@ -138,6 +139,7 @@ function ensureValidToken(interactive = true) {
     }
     if (!state.tokenClient) initGoogleAuth();
     if (!state.tokenClient) {
+      showToast('مكتبة Google لم تكتمل بعد، أعد المحاولة');
       reject(new Error('GIS_NOT_READY'));
       return;
     }
@@ -161,7 +163,7 @@ function ensureValidToken(interactive = true) {
 }
 
 // ============================================================================
-// 3. عمليات Google Drive API v3 (بصلاحية drive.file فقط)
+// 3. عمليات Google Drive API v3
 // ============================================================================
 async function driveFetch(url, options = {}) {
   const token = await ensureValidToken(true);
@@ -171,11 +173,15 @@ async function driveFetch(url, options = {}) {
   if (res.status === 401) {
     state.accessToken = null;
     updateAuthUI(false);
-    throw new Error('انتهت جلسة الدخول، يرجى إعادة الاتصال');
+    throw new Error('انتهت جلسة الدخول، اضغط على زر متصل لتجديدها');
   }
   if (!res.ok) {
-    const errText = await res.text();
-    throw new Error(`Drive API Error (${res.status}): ${errText}`);
+    let errMsg = `خطأ (${res.status})`;
+    try {
+      const errJson = await res.json();
+      errMsg = errJson.error?.message || errMsg;
+    } catch (_) {}
+    throw new Error(errMsg);
   }
   return res;
 }
@@ -186,8 +192,12 @@ async function getOrCreateAppFolder() {
     try {
       const check = await driveFetch(`https://www.googleapis.com/drive/v3/files/${folderId}?fields=id,trashed`);
       const data = await check.json();
-      if (data.id && !data.trashed) return folderId;
+      if (data.id && !data.trashed) {
+        document.getElementById('driveFolderInfo').textContent = `مجلد التطبيق متصل ومؤمّن (${APP_FOLDER_NAME})`;
+        return folderId;
+      }
     } catch (_) {
+      localStorage.removeItem('mostanadati_folder_id');
       folderId = null;
     }
   }
@@ -224,7 +234,7 @@ async function uploadBinaryFileToDrive(fileBlob, fileName, mimeType, folderId) {
 
   const form = new FormData();
   form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
-  form.append('file', fileBlob);
+  form.append('file', fileBlob, fileName);
 
   const res = await driveFetch(
     'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name,webViewLink,mimeType,size',
@@ -237,11 +247,13 @@ async function uploadBinaryFileToDrive(fileBlob, fileName, mimeType, folderId) {
 // 4. مزامنة الفهرس السحابية (دمج ذكي غير مدمر)
 // ============================================================================
 async function syncWithGoogleDrive() {
+  if (state.isSyncing) return;
   if (!navigator.onLine) {
     showToast('أنت غير متصل بالإنترنت حالياً');
     return;
   }
 
+  state.isSyncing = true;
   const syncBtn = document.getElementById('syncBtn');
   syncBtn.classList.add('spinning');
   document.getElementById('syncStatusText').textContent = 'جاري المزامنة...';
@@ -260,7 +272,6 @@ async function syncWithGoogleDrive() {
       remoteIndex = await contentRes.json();
     }
 
-    // دمج الفهرس المحلي والسحابي دون فقدان أي مستند
     if (remoteIndex && Array.isArray(remoteIndex.documents)) {
       state.indexData = mergeIndexes(state.indexData, remoteIndex);
     }
@@ -268,7 +279,6 @@ async function syncWithGoogleDrive() {
     state.indexData.lastSyncedAt = new Date().toISOString();
     await saveLocalIndex();
 
-    // رفع النسخة المدمجة المحدثة إلى Drive
     const jsonBlob = new Blob([JSON.stringify(state.indexData, null, 2)], { type: 'application/json' });
     if (remoteFileId) {
       await driveFetch(`https://www.googleapis.com/upload/drive/v3/files/${remoteFileId}?uploadType=media`, {
@@ -284,9 +294,11 @@ async function syncWithGoogleDrive() {
     updateSyncStatusUI();
     showToast('تمت مزامنة الفهرس بنجاح');
   } catch (err) {
-    console.error(err);
-    document.getElementById('syncStatusText').textContent = 'تعمل محلياً (بانتظار الاتصال)';
+    console.error('Sync Error:', err);
+    document.getElementById('syncStatusText').textContent = `تعذرت المزامنة: ${err.message}`;
+    showToast(`تعذرت المزامنة: ${err.message}`);
   } finally {
+    state.isSyncing = false;
     syncBtn.classList.remove('spinning');
   }
 }
@@ -294,7 +306,6 @@ async function syncWithGoogleDrive() {
 function mergeIndexes(local, remote) {
   const deletedSet = new Set([...(local.deletedIds || []), ...(remote.deletedIds || [])]);
 
-  // دمج التصنيفات
   const catMap = new Map();
   [...(remote.categories || []), ...(local.categories || [])].forEach((c) => {
     const existing = catMap.get(c.id);
@@ -303,7 +314,6 @@ function mergeIndexes(local, remote) {
     }
   });
 
-  // دمج المستندات
   const docMap = new Map();
   [...(remote.documents || []), ...(local.documents || [])].forEach((d) => {
     if (deletedSet.has(d.id)) return;
@@ -331,6 +341,7 @@ async function processOutboxQueue() {
   if (!queue.length || !navigator.onLine) return;
 
   try {
+    document.getElementById('syncStatusText').textContent = 'جاري رفع المستندات المعلقة...';
     const folderId = await getOrCreateAppFolder();
     for (const item of queue) {
       const uploaded = await uploadBinaryFileToDrive(item.fileBlob, item.fileName, item.mimeType, folderId);
@@ -344,11 +355,14 @@ async function processOutboxQueue() {
       await dbDelete('outbox', item.localId);
     }
     await saveLocalIndex();
-    await syncWithGoogleDrive();
+    renderAll();
     updateQueueBanner(0);
-    showToast('تم رفع جميع المستندات المعلقة إلى Google Drive');
+    showToast('تم رفع المستندات المعلقة إلى Google Drive بنجاح');
+    await syncWithGoogleDrive();
   } catch (err) {
     console.error('Outbox sync error:', err);
+    document.getElementById('syncStatusText').textContent = `تعذر الرفع: ${err.message}`;
+    showToast(`تعذر الرفع: ${err.message}`);
   }
 }
 
@@ -385,7 +399,7 @@ async function handleAddDocument(e) {
       title,
       categoryId,
       keywords,
-      extractedText: '', // جاهز لمرحلة OCR مستقبلاً
+      extractedText: '',
       driveFileId: fileId,
       webViewLink: `https://drive.google.com/file/d/${fileId}/view`,
       mimeType: 'application/vnd.google-apps.file',
@@ -402,7 +416,6 @@ async function handleAddDocument(e) {
     return;
   }
 
-  // وضع رفع ملف جديد
   const file = state.selectedFile;
   if (!file) {
     showToast('يرجى اختيار ملف أو التقاط صورة أولاً');
@@ -415,10 +428,9 @@ async function handleAddDocument(e) {
   progressBox.classList.remove('hidden');
   progressFill.style.width = '35%';
 
-  const ext = file.name.includes('.') ? file.name.split('.').pop() : 'pdf';
+  const ext = file.name && file.name.includes('.') ? file.name.split('.').pop() : 'jpg';
   const safeDriveName = `${title}.${ext}`;
 
-  // إذا كان الجهاز غير متصل أو الجلسة غير نشطة -> حفظ في قائمة الانتظار المحلية بأمان
   if (!navigator.onLine || !getClientId()) {
     await queueOfflineDocument(docId, title, categoryId, keywords, file, safeDriveName, now);
     submitBtn.disabled = false;
@@ -430,7 +442,7 @@ async function handleAddDocument(e) {
   try {
     const folderId = await getOrCreateAppFolder();
     progressFill.style.width = '70%';
-    const uploaded = await uploadBinaryFileToDrive(file, safeDriveName, file.type, folderId);
+    const uploaded = await uploadBinaryFileToDrive(file, safeDriveName, file.type || 'application/octet-stream', folderId);
     progressFill.style.width = '100%';
 
     state.indexData.documents.unshift({
@@ -453,7 +465,8 @@ async function handleAddDocument(e) {
     showToast('تم رفع المستند وحفظه في الفهرس بنجاح');
     await syncWithGoogleDrive();
   } catch (err) {
-    console.warn('تم التحويل للحفظ المحلي المؤقت بسبب تعذر الرفع الفوري:', err);
+    console.warn('Upload failed, queuing offline:', err);
+    showToast(`حُفظ محلياً مؤقتاً: ${err.message}`);
     await queueOfflineDocument(docId, title, categoryId, keywords, file, safeDriveName, now);
     closeModal('addDocModal');
   } finally {
@@ -468,7 +481,7 @@ async function queueOfflineDocument(docId, title, categoryId, keywords, file, sa
     localId: 'q_' + crypto.randomUUID(),
     docId,
     fileName: safeDriveName,
-    mimeType: file.type,
+    mimeType: file.type || 'application/octet-stream',
     fileBlob: file,
     createdAt: now
   });
@@ -491,7 +504,6 @@ async function queueOfflineDocument(docId, title, categoryId, keywords, file, sa
   const queue = await dbGetAll('outbox');
   updateQueueBanner(queue.length);
   renderAll();
-  showToast('حُفظ المستند محلياً وسيُرفع تلقائياً عند الاتصال');
 }
 
 function openDocumentInDrive(doc) {
@@ -718,7 +730,7 @@ function updateSyncStatusUI() {
   const ts = state.indexData.lastSyncedAt;
   if (!ts) return;
   const formatted = new Date(ts).toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' });
-  document.getElementById('syncStatusText').textContent = `آخر مزامنة ${formatted}`;
+  document.getElementById('syncStatusText').textContent = `متصل ومزامن (${formatted})`;
   document.getElementById('lastSyncDetail').textContent = `آخر مزامنة: ${new Date(ts).toLocaleString('ar-SA')}`;
 }
 
@@ -750,7 +762,7 @@ function showToast(msg) {
   el.className = 'toast';
   el.textContent = msg;
   container.appendChild(el);
-  setTimeout(() => el.remove(), 3400);
+  setTimeout(() => el.remove(), 4200);
 }
 
 function escapeHtml(str) {
@@ -759,23 +771,17 @@ function escapeHtml(str) {
   }[m]));
 }
 
-// ============================================================================
-// نقطة الانطلاق عند فتح التطبيق
-// ============================================================================
 window.addEventListener('DOMContentLoaded', async () => {
-  // تسجيل Service Worker
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('./sw.js').catch(console.error);
   }
 
-  // استعادة المظهر
   if (localStorage.getItem('mostanadati_theme') === 'dark') {
     document.documentElement.setAttribute('data-theme', 'dark');
   }
 
   setupPinLock();
 
-  // تحميل الفهرس المحلي أو إنشاء الفهرس الافتراضي
   const storedIndex = await dbGet('meta', 'index');
   if (storedIndex && Array.isArray(storedIndex.categories)) {
     state.indexData = storedIndex;
@@ -791,7 +797,6 @@ window.addEventListener('DOMContentLoaded', async () => {
   const queue = await dbGetAll('outbox');
   updateQueueBanner(queue.length);
 
-  // مراقبة حالة الإنترنت
   const updateOnlineState = () => {
     document.getElementById('offlineBadge').classList.toggle('hidden', navigator.onLine);
     if (navigator.onLine && state.accessToken) {
@@ -802,13 +807,11 @@ window.addEventListener('DOMContentLoaded', async () => {
   window.addEventListener('offline', updateOnlineState);
   updateOnlineState();
 
-  // الأحداث والتنقل
   document.querySelectorAll('.nav-item').forEach((btn) => {
     btn.addEventListener('click', () => switchView(btn.dataset.target));
   });
   document.getElementById('manageCatsShortcut').addEventListener('click', () => switchView('viewCategories'));
 
-  // البحث الفوري
   const searchInput = document.getElementById('searchInput');
   const clearBtn = document.getElementById('clearSearchBtn');
   searchInput.addEventListener('input', () => {
@@ -823,7 +826,6 @@ window.addEventListener('DOMContentLoaded', async () => {
     renderDocuments();
   });
 
-  // نافذة إضافة مستند
   document.getElementById('fabAddBtn').addEventListener('click', () => {
     document.getElementById('addDocModal').classList.remove('hidden');
   });
@@ -857,7 +859,6 @@ window.addEventListener('DOMContentLoaded', async () => {
 
   document.getElementById('addDocForm').addEventListener('submit', handleAddDocument);
 
-  // تعديل وحذف المستندات
   document.getElementById('editDocForm').addEventListener('submit', async (e) => {
     e.preventDefault();
     const id = document.getElementById('editDocId').value;
@@ -887,7 +888,6 @@ window.addEventListener('DOMContentLoaded', async () => {
     if (navigator.onLine && state.accessToken) syncWithGoogleDrive();
   });
 
-  // إضافة تصنيف جديد
   document.getElementById('addCategoryBtn').addEventListener('click', async () => {
     const name = prompt('اسم التصنيف الجديد:');
     if (!name || !name.trim()) return;
@@ -903,7 +903,6 @@ window.addEventListener('DOMContentLoaded', async () => {
     if (navigator.onLine && state.accessToken) syncWithGoogleDrive();
   });
 
-  // الإعدادات والمزامنة
   document.getElementById('saveClientIdBtn').addEventListener('click', () => {
     const val = document.getElementById('clientIdInput').value.trim();
     localStorage.setItem('mostanadati_client_id', val);
@@ -916,15 +915,19 @@ window.addEventListener('DOMContentLoaded', async () => {
       await ensureValidToken(true);
       await processOutboxQueue();
       await syncWithGoogleDrive();
-    } catch (_) {}
+    } catch (err) {
+      showToast(`تنبيه: ${err.message}`);
+    }
   };
   document.getElementById('connectDriveBtn').addEventListener('click', triggerConnect);
   document.getElementById('authStatusBtn').addEventListener('click', triggerConnect);
-  document.getElementById('syncBtn').addEventListener('click', syncWithGoogleDrive);
+  document.getElementById('syncBtn').addEventListener('click', async () => {
+    await processOutboxQueue();
+    await syncWithGoogleDrive();
+  });
   document.getElementById('manualSyncSettingsBtn').addEventListener('click', syncWithGoogleDrive);
   document.getElementById('flushQueueBtn').addEventListener('click', processOutboxQueue);
 
-  // قفل PIN
   document.getElementById('togglePinBtn').addEventListener('click', () => {
     const existing = localStorage.getItem('mostanadati_pin');
     if (existing) {
@@ -943,14 +946,12 @@ window.addEventListener('DOMContentLoaded', async () => {
     }
   });
 
-  // تبديل المظهر
   document.getElementById('themeToggleBtn').addEventListener('click', () => {
     const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
     document.documentElement.setAttribute('data-theme', isDark ? 'light' : 'dark');
     localStorage.setItem('mostanadati_theme', isDark ? 'light' : 'dark');
   });
 
-  // تصدير واستيراد النسخة الاحتياطية
   document.getElementById('exportBackupBtn').addEventListener('click', () => {
     const blob = new Blob([JSON.stringify(state.indexData, null, 2)], { type: 'application/json' });
     const a = document.createElement('a');
@@ -975,6 +976,5 @@ window.addEventListener('DOMContentLoaded', async () => {
     }
   });
 
-  // تهيئة Google Auth بعد تحميل السكربت
   setTimeout(initGoogleAuth, 600);
 });
