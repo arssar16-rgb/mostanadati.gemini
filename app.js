@@ -1,5 +1,5 @@
 // ============================================================================
-// تطبيق «مستنداتي» - المحرك الرئيسي المحدّث
+// تطبيق «مستنداتي» - المحرك الرئيسي المحدّث والنهائي
 // ============================================================================
 
 const DB_NAME = 'MostanadatiDB';
@@ -244,7 +244,7 @@ async function uploadBinaryFileToDrive(fileBlob, fileName, mimeType, folderId) {
 }
 
 // ============================================================================
-// 4. مزامنة الفهرس السحابية (دمج ذكي غير مدمر)
+// 4. مزامنة الفهرس السحابية (دمج ذكي غير مدمر مع أولوية الملفات المرفوعة)
 // ============================================================================
 async function syncWithGoogleDrive() {
   if (state.isSyncing) return;
@@ -318,7 +318,16 @@ function mergeIndexes(local, remote) {
   [...(remote.documents || []), ...(local.documents || [])].forEach((d) => {
     if (deletedSet.has(d.id)) return;
     const existing = docMap.get(d.id);
-    if (!existing || (d.updatedAt || 0) >= (existing.updatedAt || 0)) {
+    if (!existing) {
+      docMap.set(d.id, d);
+      return;
+    }
+    // الأولوية دائماً للنسخة المرفوعة فعلياً على Drive
+    if (existing.pendingUpload && !d.pendingUpload) {
+      docMap.set(d.id, d);
+    } else if (!existing.pendingUpload && d.pendingUpload) {
+      // نحتفظ بالنسخة المرفوعة
+    } else if ((d.updatedAt || 0) >= (existing.updatedAt || 0)) {
       docMap.set(d.id, d);
     }
   });
@@ -723,258 +732,4 @@ function updateAuthUI(connected) {
   const pill = document.getElementById('authStatusBtn');
   const label = document.getElementById('authBtnLabel');
   pill.classList.toggle('connected', connected);
-  label.textContent = connected ? 'متصل' : 'ربط Drive';
-}
-
-function updateSyncStatusUI() {
-  const ts = state.indexData.lastSyncedAt;
-  if (!ts) return;
-  const formatted = new Date(ts).toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' });
-  document.getElementById('syncStatusText').textContent = `متصل ومزامن (${formatted})`;
-  document.getElementById('lastSyncDetail').textContent = `آخر مزامنة: ${new Date(ts).toLocaleString('ar-SA')}`;
-}
-
-function updateQueueBanner(count) {
-  const banner = document.getElementById('queueBanner');
-  banner.classList.toggle('hidden', count === 0);
-  if (count > 0) {
-    document.getElementById('queueText').textContent = `يوجد (${count}) مستند بانتظار الرفع إلى Drive`;
-  }
-}
-
-function switchView(targetId) {
-  document.querySelectorAll('.view').forEach((v) => v.classList.toggle('hidden', v.id !== targetId));
-  document.querySelectorAll('.nav-item').forEach((n) => n.classList.toggle('active', n.dataset.target === targetId));
-}
-
-function closeModal(id) {
-  document.getElementById(id).classList.add('hidden');
-  if (id === 'addDocModal') {
-    document.getElementById('addDocForm').reset();
-    state.selectedFile = null;
-    document.getElementById('selectedFileName').textContent = 'اختر ملف PDF أو صورة، أو التقط بالكاميرا';
-  }
-}
-
-function showToast(msg) {
-  const container = document.getElementById('toastContainer');
-  const el = document.createElement('div');
-  el.className = 'toast';
-  el.textContent = msg;
-  container.appendChild(el);
-  setTimeout(() => el.remove(), 4200);
-}
-
-function escapeHtml(str) {
-  return String(str).replace(/[&<>"']/g, (m) => ({
-    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
-  }[m]));
-}
-
-window.addEventListener('DOMContentLoaded', async () => {
-  if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('./sw.js').catch(console.error);
-  }
-
-  if (localStorage.getItem('mostanadati_theme') === 'dark') {
-    document.documentElement.setAttribute('data-theme', 'dark');
-  }
-
-  setupPinLock();
-
-  const storedIndex = await dbGet('meta', 'index');
-  if (storedIndex && Array.isArray(storedIndex.categories)) {
-    state.indexData = storedIndex;
-  } else {
-    state.indexData.categories = DEFAULT_CATEGORIES;
-    await saveLocalIndex();
-  }
-
-  document.getElementById('clientIdInput').value = getClientId();
-  renderAll();
-  updateSyncStatusUI();
-
-  const queue = await dbGetAll('outbox');
-  updateQueueBanner(queue.length);
-
-  const updateOnlineState = () => {
-    document.getElementById('offlineBadge').classList.toggle('hidden', navigator.onLine);
-    if (navigator.onLine && state.accessToken) {
-      processOutboxQueue();
-    }
-  };
-  window.addEventListener('online', updateOnlineState);
-  window.addEventListener('offline', updateOnlineState);
-  updateOnlineState();
-
-  document.querySelectorAll('.nav-item').forEach((btn) => {
-    btn.addEventListener('click', () => switchView(btn.dataset.target));
-  });
-  document.getElementById('manageCatsShortcut').addEventListener('click', () => switchView('viewCategories'));
-
-  const searchInput = document.getElementById('searchInput');
-  const clearBtn = document.getElementById('clearSearchBtn');
-  searchInput.addEventListener('input', () => {
-    state.searchQuery = searchInput.value;
-    clearBtn.classList.toggle('hidden', !state.searchQuery);
-    renderDocuments();
-  });
-  clearBtn.addEventListener('click', () => {
-    searchInput.value = '';
-    state.searchQuery = '';
-    clearBtn.classList.add('hidden');
-    renderDocuments();
-  });
-
-  document.getElementById('fabAddBtn').addEventListener('click', () => {
-    document.getElementById('addDocModal').classList.remove('hidden');
-  });
-
-  document.querySelectorAll('.close-modal').forEach((btn) => {
-    btn.addEventListener('click', () => closeModal(btn.dataset.modal));
-  });
-
-  document.querySelectorAll('.mode-tab').forEach((tab) => {
-    tab.addEventListener('click', () => {
-      document.querySelectorAll('.mode-tab').forEach((t) => t.classList.remove('active'));
-      tab.classList.add('active');
-      state.addMode = tab.dataset.mode;
-      document.getElementById('uploadModeFields').classList.toggle('hidden', state.addMode !== 'upload');
-      document.getElementById('linkModeFields').classList.toggle('hidden', state.addMode !== 'link');
-    });
-  });
-
-  const handleFileSelect = (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    state.selectedFile = file;
-    document.getElementById('selectedFileName').textContent = file.name;
-    const titleInput = document.getElementById('docTitleInput');
-    if (!titleInput.value) {
-      titleInput.value = file.name.replace(/\.[^/.]+$/, '');
-    }
-  };
-  document.getElementById('docFileInput').addEventListener('change', handleFileSelect);
-  document.getElementById('cameraInput').addEventListener('change', handleFileSelect);
-
-  document.getElementById('addDocForm').addEventListener('submit', handleAddDocument);
-
-  document.getElementById('editDocForm').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const id = document.getElementById('editDocId').value;
-    const doc = state.indexData.documents.find((d) => d.id === id);
-    if (doc) {
-      doc.title = document.getElementById('editDocTitle').value.trim();
-      doc.categoryId = document.getElementById('editDocCategory').value;
-      doc.keywords = document.getElementById('editDocKeywords').value.trim();
-      doc.updatedAt = Date.now();
-      await saveLocalIndex();
-      renderAll();
-      closeModal('editDocModal');
-      showToast('تم تحديث بيانات المستند');
-      if (navigator.onLine && state.accessToken) syncWithGoogleDrive();
-    }
-  });
-
-  document.getElementById('deleteDocBtn').addEventListener('click', async () => {
-    const id = document.getElementById('editDocId').value;
-    if (!confirm('هل تريد حذف هذا المستند من الفهرس؟ (يبقى الملف الأصلي محفوظاً في Google Drive)')) return;
-    state.indexData.documents = state.indexData.documents.filter((d) => d.id !== id);
-    state.indexData.deletedIds.push(id);
-    await saveLocalIndex();
-    renderAll();
-    closeModal('editDocModal');
-    showToast('تم حذف المستند من الفهرس');
-    if (navigator.onLine && state.accessToken) syncWithGoogleDrive();
-  });
-
-  document.getElementById('addCategoryBtn').addEventListener('click', async () => {
-    const name = prompt('اسم التصنيف الجديد:');
-    if (!name || !name.trim()) return;
-    state.indexData.categories.push({
-      id: 'cat_' + crypto.randomUUID(),
-      name: name.trim(),
-      icon: 'folder',
-      updatedAt: Date.now()
-    });
-    await saveLocalIndex();
-    renderAll();
-    showToast('تمت إضافة التصنيف');
-    if (navigator.onLine && state.accessToken) syncWithGoogleDrive();
-  });
-
-  document.getElementById('saveClientIdBtn').addEventListener('click', () => {
-    const val = document.getElementById('clientIdInput').value.trim();
-    localStorage.setItem('mostanadati_client_id', val);
-    initGoogleAuth();
-    showToast('تم حفظ معرف العميل');
-  });
-
-  const triggerConnect = async () => {
-    try {
-      await ensureValidToken(true);
-      await processOutboxQueue();
-      await syncWithGoogleDrive();
-    } catch (err) {
-      showToast(`تنبيه: ${err.message}`);
-    }
-  };
-  document.getElementById('connectDriveBtn').addEventListener('click', triggerConnect);
-  document.getElementById('authStatusBtn').addEventListener('click', triggerConnect);
-  document.getElementById('syncBtn').addEventListener('click', async () => {
-    await processOutboxQueue();
-    await syncWithGoogleDrive();
-  });
-  document.getElementById('manualSyncSettingsBtn').addEventListener('click', syncWithGoogleDrive);
-  document.getElementById('flushQueueBtn').addEventListener('click', processOutboxQueue);
-
-  document.getElementById('togglePinBtn').addEventListener('click', () => {
-    const existing = localStorage.getItem('mostanadati_pin');
-    if (existing) {
-      if (confirm('هل تريد إلغاء قفل التطبيق؟')) {
-        localStorage.removeItem('mostanadati_pin');
-        showToast('تم إلغاء القفل');
-      }
-    } else {
-      const pin = prompt('أدخل رمز مرور مكون من 4 أرقام:');
-      if (pin && /^\d{4}$/.test(pin)) {
-        localStorage.setItem('mostanadati_pin', pin);
-        showToast('تم تفعيل قفل التطبيق بنجاح');
-      } else {
-        showToast('يجب إدخال 4 أرقام صحيحة');
-      }
-    }
-  });
-
-  document.getElementById('themeToggleBtn').addEventListener('click', () => {
-    const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
-    document.documentElement.setAttribute('data-theme', isDark ? 'light' : 'dark');
-    localStorage.setItem('mostanadati_theme', isDark ? 'light' : 'dark');
-  });
-
-  document.getElementById('exportBackupBtn').addEventListener('click', () => {
-    const blob = new Blob([JSON.stringify(state.indexData, null, 2)], { type: 'application/json' });
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = `mostanadati-backup-${new Date().toISOString().slice(0, 10)}.json`;
-    a.click();
-  });
-
-  document.getElementById('importBackupInput').addEventListener('change', async (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    try {
-      const parsed = JSON.parse(await file.text());
-      if (Array.isArray(parsed.documents)) {
-        state.indexData = mergeIndexes(state.indexData, parsed);
-        await saveLocalIndex();
-        renderAll();
-        showToast('تم استيراد النسخة الاحتياطية ودمجها بنجاح');
-      }
-    } catch (_) {
-      showToast('ملف النسخة الاحتياطية غير صالح');
-    }
-  });
-
-  setTimeout(initGoogleAuth, 600);
-});
+  label.textContent = connected ? 'متصل
