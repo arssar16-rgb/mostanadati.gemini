@@ -1,33 +1,27 @@
 export const SCOPE =
   "https://www.googleapis.com/auth/drive.metadata.readonly";
 
-// قراءة بيانات الملفات من Google Drive.
+const rootsByList = new WeakMap();
+const indexes = new WeakMap();
+
+let currentList;
+let selectedFolder = "";
+let visibleSyncPending = false;
+let FuseClass;
+
+// قراءة بيانات الملفات والمجلدات الرئيسية.
 export async function loadFiles(
   token,
   signal,
   progress = () => {},
   request = fetch
 ) {
-  const files = new Map();
-  let pageToken = "";
-
-  do {
+  async function get(path, params) {
     const url = new URL(
-      "https://www.googleapis.com/drive/v3/files"
+      `https://www.googleapis.com/drive/v3/${path}`
     );
 
-    url.search = new URLSearchParams({
-      q: "trashed = false",
-      spaces: "drive",
-      corpora: "allDrives",
-      pageSize: "1000",
-      supportsAllDrives: "true",
-      includeItemsFromAllDrives: "true",
-      fields:
-        "nextPageToken,incompleteSearch," +
-        "files(id,name,mimeType,webViewLink,modifiedTime,resourceKey)",
-      ...(pageToken ? { pageToken } : {})
-    });
+    url.search = new URLSearchParams(params);
 
     const response = await request(url, {
       method: "GET",
@@ -49,26 +43,69 @@ export async function loadFiles(
       throw error;
     }
 
-    const data = await response.json();
+    return response.json();
+  }
 
-    if (data.incompleteSearch) {
-      throw new Error(
-        "أبلغ Google أن البحث لم يشمل جميع مساحات Drive. أعد التحديث."
-      );
-    }
+  const files = new Map();
 
-    for (const file of data.files || []) {
-      files.set(file.id, file);
-    }
+  async function collect(extra) {
+    const collected = [];
+    let pageToken = "";
 
-    progress(files.size);
-    pageToken = data.nextPageToken;
-  } while (pageToken);
+    do {
+      const data = await get("files", {
+        q: "trashed = false",
+        spaces: "drive",
+        pageSize: "1000",
+        fields:
+          "nextPageToken,incompleteSearch," +
+          "files(id,name,mimeType,webViewLink," +
+          "modifiedTime,resourceKey,parents)",
+        supportsAllDrives: "true",
+        includeItemsFromAllDrives: "true",
+        ...extra,
+        ...(pageToken ? { pageToken } : {})
+      });
 
-  return [...files.values()];
+      if (data.incompleteSearch) {
+        throw new Error(
+          "البحث غير مكتمل من Google. أعد التحديث."
+        );
+      }
+
+      for (const file of data.files || []) {
+        files.set(file.id, file);
+        collected.push(file);
+      }
+
+      progress(files.size);
+      pageToken = data.nextPageToken;
+    } while (pageToken);
+
+    return collected;
+  }
+
+  await collect({
+    corpora: "allDrives"
+  });
+
+  // مجلدات المستوى الأول داخل «ملفاتي» فقط.
+  const roots = await collect({
+    corpora: "user",
+    q:
+      "trashed = false " +
+      "and mimeType = 'application/vnd.google-apps.folder' " +
+      "and 'root' in parents"
+  });
+
+  const list = [...files.values()];
+
+  rootsByList.set(list, roots);
+
+  return list;
 }
 
-// تصنيف الملف حسب نوعه.
+// نوع الملف.
 export function kind(file) {
   const mime = file.mimeType || "";
 
@@ -91,11 +128,7 @@ export function kind(file) {
   return "other";
 }
 
-// البحث العربي والتقريبي.
-let FuseClass;
-
-const indexes = new WeakMap();
-
+// معالجة الاسم العربي.
 export function normalizeName(value) {
   return String(value || "")
     .normalize("NFC")
@@ -106,8 +139,18 @@ export function normalizeName(value) {
     .trim();
 }
 
+// البحث: لا نتائج دون كتابة.
 export function selectFiles(files, query, filter) {
+  syncFolders(files);
+  scheduleVisibility();
+
   const q = normalizeName(query);
+
+  if (!q) {
+    return [];
+  }
+
+  const allowed = allowedFiles(files);
 
   const byDate = (a, b) => {
     return (
@@ -119,18 +162,16 @@ export function selectFiles(files, query, filter) {
   };
 
   const candidates = files.filter((file) => {
-    return filter === "all" || kind(file) === filter;
+    return (
+      allowed.has(file.id) &&
+      (filter === "all" || kind(file) === filter)
+    );
   });
-
-  if (!q) {
-    return candidates.sort(byDate);
-  }
 
   const exact = candidates.filter((file) => {
     return normalizeName(file.name).includes(q);
   });
 
-  // إعطاء الأولوية للمطابقة المباشرة.
   if (exact.length || !FuseClass || q.length < 3) {
     return exact.sort(byDate);
   }
@@ -159,11 +200,14 @@ export function selectFiles(files, query, filter) {
     .search(q)
     .map((result) => result.item.file)
     .filter((file) => {
-      return filter === "all" || kind(file) === filter;
+      return (
+        allowed.has(file.id) &&
+        (filter === "all" || kind(file) === filter)
+      );
     });
 }
 
-// فتح الملف في Google Drive.
+// رابط فتح الملف.
 export function fileURL(file) {
   try {
     const url = new URL(file.webViewLink);
@@ -182,7 +226,7 @@ export function fileURL(file) {
       return url.href;
     }
   } catch {
-    // استخدام رابط بديل عند غياب رابط صالح.
+    // استخدام رابط بديل.
   }
 
   const id = encodeURIComponent(file.id);
@@ -203,7 +247,255 @@ export function fileURL(file) {
   return url.href;
 }
 
-// تحميل الإضافات دون تعطيل البحث إذا تعذر تحميلها.
+// تحديد الملفات التابعة للمجلد المختار.
+export function allowedFiles(files) {
+  const roots = rootsByList.get(files) || [];
+
+  if (!selectedFolder) {
+    const rootIds = new Set(
+      roots.map((folder) => folder.id)
+    );
+
+    return new Set(
+      files
+        .filter((file) => {
+          return (
+            kind(file) !== "folders" ||
+            rootIds.has(file.id)
+          );
+        })
+        .map((file) => file.id)
+    );
+  }
+
+  const children = new Map();
+
+  for (const file of files) {
+    for (const parent of file.parents || []) {
+      if (!children.has(parent)) {
+        children.set(parent, []);
+      }
+
+      children.get(parent).push(file);
+    }
+  }
+
+  const visited = new Set([selectedFolder]);
+  const pending = [selectedFolder];
+  const allowed = new Set();
+
+  while (pending.length) {
+    const parent = pending.pop();
+
+    for (const file of children.get(parent) || []) {
+      if (visited.has(file.id)) {
+        continue;
+      }
+
+      visited.add(file.id);
+
+      if (kind(file) === "folders") {
+        pending.push(file.id);
+      } else {
+        allowed.add(file.id);
+      }
+    }
+  }
+
+  return allowed;
+}
+
+// بناء قائمة المجلدات الرئيسية.
+function syncFolders(files) {
+  if (files === currentList) {
+    return;
+  }
+
+  const previousRoots =
+    rootsByList.get(currentList) || [];
+
+  const roots = rootsByList.get(files) || [];
+
+  const existedBefore = previousRoots.some(
+    (folder) => folder.id === selectedFolder
+  );
+
+  const existsNow = roots.some(
+    (folder) => folder.id === selectedFolder
+  );
+
+  if (!existedBefore || !existsNow) {
+    selectedFolder = "";
+  }
+
+  currentList = files;
+
+  if (typeof document === "undefined") {
+    return;
+  }
+
+  let panel = document.getElementById("mainFolders");
+
+  if (!panel) {
+    panel = document.createElement("section");
+    panel.id = "mainFolders";
+
+    panel.setAttribute(
+      "aria-label",
+      "مجلدات ملفاتي الرئيسية"
+    );
+
+    const filters = document.getElementById("filters");
+
+    if (!filters) {
+      return;
+    }
+
+    filters.after(panel);
+  }
+
+  panel.replaceChildren();
+  panel.hidden = !roots.length;
+
+  if (!roots.length) {
+    return;
+  }
+
+  const heading = document.createElement("p");
+
+  heading.className = "folder-heading";
+  heading.textContent = "مجلدات ملفاتي الرئيسية";
+
+  const buttons = document.createElement("div");
+  buttons.className = "root-folder-buttons";
+
+  const sorted = [...roots].sort((a, b) => {
+    return a.name.localeCompare(b.name, "ar");
+  });
+
+  const folders = [
+    { id: "", name: "جميع الملفات" },
+    ...sorted
+  ];
+
+  for (const folder of folders) {
+    const button = document.createElement("button");
+
+    button.type = "button";
+    button.textContent = folder.name;
+    button.dataset.folderId = folder.id;
+
+    button.classList.toggle(
+      "active",
+      folder.id === selectedFolder
+    );
+
+    button.setAttribute(
+      "aria-pressed",
+      String(folder.id === selectedFolder)
+    );
+
+    button.onclick = () => {
+      selectedFolder = folder.id;
+
+      for (const item of buttons.children) {
+        const active = item === button;
+
+        item.classList.toggle("active", active);
+
+        item.setAttribute(
+          "aria-pressed",
+          String(active)
+        );
+      }
+
+      // تطبيق البحث داخل المجلد مع عرض جميع أنواع الملفات.
+      document
+        .querySelector("#filters button")
+        ?.click();
+
+      scheduleVisibility();
+    };
+
+    buttons.append(button);
+  }
+
+  panel.append(heading, buttons);
+}
+
+// إخفاء منطقة النتائج عندما يكون البحث فارغًا.
+function scheduleVisibility() {
+  if (
+    typeof document === "undefined" ||
+    visibleSyncPending
+  ) {
+    return;
+  }
+
+  visibleSyncPending = true;
+
+  queueMicrotask(() => {
+    visibleSyncPending = false;
+
+    const input = document.getElementById("searchInput");
+
+    const searching = Boolean(
+      input?.value.trim()
+    );
+
+    const results = document.getElementById("results");
+
+    if (results) {
+      results.hidden = !searching;
+    }
+
+    document
+      .querySelectorAll(
+        ".results-bar, .results-heading"
+      )
+      .forEach((element) => {
+        element.hidden = !searching;
+      });
+
+    if (!searching) {
+      const more = document.getElementById("moreBtn");
+
+      if (more) {
+        more.hidden = true;
+      }
+
+      const status = document.getElementById("status");
+
+      if (
+        status &&
+        /^(لا توجد ملفات|تُعرض|اكتمل تحديث)/.test(
+          status.textContent.trim()
+        )
+      ) {
+        status.textContent =
+          "جاهز للبحث. اكتب جزءًا من اسم الملف لعرض النتائج.";
+      }
+    } else {
+      const title = document.getElementById(
+        "resultsTitle"
+      );
+
+      const folder = (
+        rootsByList.get(currentList) || []
+      ).find((item) => {
+        return item.id === selectedFolder;
+      });
+
+      if (title) {
+        title.textContent = folder
+          ? "نتائج البحث — " + folder.name
+          : "نتائج البحث في جميع الملفات";
+      }
+    }
+  });
+}
+
+// تحميل مكتبة البحث التقريبي.
 if (typeof document !== "undefined") {
   import(
     "https://cdn.jsdelivr.net/npm/fuse.js@7.5.0/dist/fuse.mjs"
@@ -227,6 +519,7 @@ if (typeof document !== "undefined") {
       );
     });
 
+  // أيقونات التصنيفات والملفات.
   function installIcons() {
     if (!window.lucide?.createIcons) {
       return;
@@ -392,5 +685,109 @@ if (typeof document !== "undefined") {
     );
   } else {
     startIcons();
+  }
+
+  // تنسيق قائمة المجلدات على الكمبيوتر والآيفون.
+  const style = document.createElement("style");
+
+  style.textContent = `
+    aside {
+      overflow-y: auto;
+    }
+
+    #mainFolders {
+      margin-top: 20px;
+      min-height: 0;
+    }
+
+    .folder-heading {
+      font-size: 11px;
+      color: #c1d1c4;
+      padding: 0 12px;
+    }
+
+    .root-folder-buttons {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+
+    .root-folder-buttons button {
+      border: 0;
+      background: transparent;
+      color: #d0ded0;
+      text-align: right;
+      padding: 10px 14px;
+      font-size: 13px;
+      overflow-wrap: anywhere;
+    }
+
+    .root-folder-buttons button::before {
+      content: "▱";
+      margin-inline-end: 9px;
+    }
+
+    .root-folder-buttons button.active {
+      background: #dce9b9;
+      color: #153e3b;
+    }
+
+    @media (max-width: 800px) {
+      aside {
+        overflow: visible;
+      }
+
+      #mainFolders {
+        margin-top: 5px;
+        border-top: 1px solid #e0e5da;
+        padding-top: 6px;
+      }
+
+      .folder-heading {
+        display: none;
+      }
+
+      .root-folder-buttons {
+        flex-direction: row;
+        overflow-x: auto;
+        scrollbar-width: none;
+      }
+
+      .root-folder-buttons button {
+        flex-shrink: 0;
+        white-space: nowrap;
+        padding: 7px 12px;
+        font-size: 11px;
+        color: #526a4c;
+        background: #f3f5ef;
+      }
+
+      main {
+        padding-bottom: 165px !important;
+      }
+    }
+  `;
+
+  document.head.append(style);
+
+  const setup = () => {
+    document
+      .getElementById("searchInput")
+      ?.addEventListener(
+        "input",
+        scheduleVisibility
+      );
+
+    scheduleVisibility();
+  };
+
+  if (document.readyState === "loading") {
+    document.addEventListener(
+      "DOMContentLoaded",
+      setup,
+      { once: true }
+    );
+  } else {
+    setup();
   }
 }
