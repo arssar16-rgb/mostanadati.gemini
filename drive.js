@@ -1,6 +1,7 @@
 export const SCOPE =
   "https://www.googleapis.com/auth/drive.metadata.readonly";
 
+// قراءة بيانات الملفات من Google Drive.
 export async function loadFiles(
   token,
   signal,
@@ -40,7 +41,8 @@ export async function loadFiles(
       const body = await response.json().catch(() => ({}));
 
       const error = new Error(
-        body.error?.message || `Drive HTTP ${response.status}`
+        body.error?.message ||
+        `Drive HTTP ${response.status}`
       );
 
       error.status = response.status;
@@ -51,8 +53,7 @@ export async function loadFiles(
 
     if (data.incompleteSearch) {
       throw new Error(
-        "أبلغ Google أن البحث لم يشمل جميع مساحات Drive. " +
-        "لم تُعتمد النتائج الناقصة. أعد التحديث."
+        "أبلغ Google أن البحث لم يشمل جميع مساحات Drive. أعد التحديث."
       );
     }
 
@@ -67,6 +68,7 @@ export async function loadFiles(
   return [...files.values()];
 }
 
+// تصنيف الملف حسب نوعه.
 export function kind(file) {
   const mime = file.mimeType || "";
 
@@ -89,34 +91,79 @@ export function kind(file) {
   return "other";
 }
 
-export function selectFiles(files, query, filter) {
-  const normalizedQuery = query
-    .trim()
+// البحث العربي والتقريبي.
+let FuseClass;
+
+const indexes = new WeakMap();
+
+export function normalizeName(value) {
+  return String(value || "")
     .normalize("NFC")
-    .toLocaleLowerCase("ar");
+    .toLocaleLowerCase("ar")
+    .replace(/[\u064B-\u065F\u0670\u0640]/g, "")
+    .replace(/[أإآٱ]/g, "ا")
+    .replace(/ى/g, "ي")
+    .trim();
+}
 
-  return files
+export function selectFiles(files, query, filter) {
+  const q = normalizeName(query);
+
+  const byDate = (a, b) => {
+    return (
+      (b.modifiedTime || "").localeCompare(
+        a.modifiedTime || ""
+      ) ||
+      (a.name || "").localeCompare(b.name || "", "ar")
+    );
+  };
+
+  const candidates = files.filter((file) => {
+    return filter === "all" || kind(file) === filter;
+  });
+
+  if (!q) {
+    return candidates.sort(byDate);
+  }
+
+  const exact = candidates.filter((file) => {
+    return normalizeName(file.name).includes(q);
+  });
+
+  // إعطاء الأولوية للمطابقة المباشرة.
+  if (exact.length || !FuseClass || q.length < 3) {
+    return exact.sort(byDate);
+  }
+
+  let index = indexes.get(files);
+
+  if (!index) {
+    index = new FuseClass(
+      files.map((file) => ({
+        file,
+        name: normalizeName(file.name)
+      })),
+      {
+        keys: ["name"],
+        threshold: 0.32,
+        ignoreLocation: true,
+        includeScore: true,
+        minMatchCharLength: 2
+      }
+    );
+
+    indexes.set(files, index);
+  }
+
+  return index
+    .search(q)
+    .map((result) => result.item.file)
     .filter((file) => {
-      const matchesType =
-        filter === "all" || kind(file) === filter;
-
-      const matchesName = (file.name || "")
-        .normalize("NFC")
-        .toLocaleLowerCase("ar")
-        .includes(normalizedQuery);
-
-      return matchesType && matchesName;
-    })
-    .sort((a, b) => {
-      return (
-        (b.modifiedTime || "").localeCompare(
-          a.modifiedTime || ""
-        ) ||
-        (a.name || "").localeCompare(b.name || "", "ar")
-      );
+      return filter === "all" || kind(file) === filter;
     });
 }
 
+// فتح الملف في Google Drive.
 export function fileURL(file) {
   try {
     const url = new URL(file.webViewLink);
@@ -135,7 +182,7 @@ export function fileURL(file) {
       return url.href;
     }
   } catch {
-    // استخدام رابط Drive بديل عند غياب رابط صالح.
+    // استخدام رابط بديل عند غياب رابط صالح.
   }
 
   const id = encodeURIComponent(file.id);
@@ -147,8 +194,203 @@ export function fileURL(file) {
   );
 
   if (file.resourceKey) {
-    url.searchParams.set("resourcekey", file.resourceKey);
+    url.searchParams.set(
+      "resourcekey",
+      file.resourceKey
+    );
   }
 
   return url.href;
+}
+
+// تحميل الإضافات دون تعطيل البحث إذا تعذر تحميلها.
+if (typeof document !== "undefined") {
+  import(
+    "https://cdn.jsdelivr.net/npm/fuse.js@7.5.0/dist/fuse.mjs"
+  )
+    .then((module) => {
+      FuseClass = module.default;
+
+      const input = document.getElementById(
+        "searchInput"
+      );
+
+      if (input?.value) {
+        input.dispatchEvent(
+          new Event("input", { bubbles: true })
+        );
+      }
+    })
+    .catch(() => {
+      console.warn(
+        "البحث التقريبي غير متاح؛ البحث العادي يعمل."
+      );
+    });
+
+  function installIcons() {
+    if (!window.lucide?.createIcons) {
+      return;
+    }
+
+    const style = document.createElement("style");
+
+    style.textContent = `
+      .file-icon svg {
+        width: 23px;
+        height: 23px;
+      }
+
+      #filters button.has-addon-icon::before {
+        display: none;
+      }
+
+      .addon-symbol {
+        display: inline-flex;
+        vertical-align: middle;
+        margin-inline-end: 10px;
+      }
+
+      .addon-symbol svg {
+        width: 19px;
+        height: 19px;
+      }
+
+      @media (max-width: 800px) {
+        #filters button.has-addon-icon .addon-symbol {
+          display: flex;
+          justify-content: center;
+          margin: 0 0 5px;
+        }
+      }
+    `;
+
+    document.head.append(style);
+
+    const results = document.getElementById(
+      "results"
+    );
+
+    const iconNames = {
+      PDF: "file-text",
+      مستندات: "files",
+      صور: "image",
+      مجلدات: "folder",
+      أخرى: "file"
+    };
+
+    const filterIcons = [
+      "layout-grid",
+      "file-text",
+      "files",
+      "image",
+      "folder",
+      "file"
+    ];
+
+    const observer = new MutationObserver(draw);
+
+    function draw() {
+      observer.disconnect();
+
+      try {
+        document
+          .querySelectorAll(
+            ".file-icon:not([data-addon-icon])"
+          )
+          .forEach((element) => {
+            const label = element.textContent.trim();
+
+            element.dataset.addonIcon = "true";
+            element.title = label;
+
+            element.setAttribute(
+              "aria-label",
+              label
+            );
+
+            const icon = document.createElement("i");
+
+            icon.setAttribute(
+              "data-lucide",
+              iconNames[label] || "file"
+            );
+
+            element.replaceChildren(icon);
+          });
+
+        document
+          .querySelectorAll(
+            "#filters button:not(.has-addon-icon)"
+          )
+          .forEach((button, index) => {
+            const wrapper =
+              document.createElement("span");
+
+            wrapper.className = "addon-symbol";
+
+            wrapper.setAttribute(
+              "aria-hidden",
+              "true"
+            );
+
+            const icon = document.createElement("i");
+
+            icon.setAttribute(
+              "data-lucide",
+              filterIcons[index] || "file"
+            );
+
+            wrapper.append(icon);
+            button.prepend(wrapper);
+
+            button.classList.add(
+              "has-addon-icon"
+            );
+          });
+
+        window.lucide.createIcons();
+      } finally {
+        if (results) {
+          observer.observe(results, {
+            childList: true,
+            subtree: true
+          });
+        }
+      }
+    }
+
+    draw();
+  }
+
+  function startIcons() {
+    if (window.lucide?.createIcons) {
+      installIcons();
+      return;
+    }
+
+    const script = document.createElement("script");
+
+    script.src =
+      "https://cdn.jsdelivr.net/npm/lucide@0.468.0/dist/umd/lucide.min.js";
+
+    script.onload = installIcons;
+
+    script.onerror = () => {
+      console.warn(
+        "الأيقونات الإضافية غير متاحة؛ يستمر العرض العادي."
+      );
+    };
+
+    document.head.append(script);
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener(
+      "DOMContentLoaded",
+      startIcons,
+      { once: true }
+    );
+  } else {
+    startIcons();
+  }
 }
