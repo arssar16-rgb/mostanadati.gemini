@@ -183,10 +183,9 @@ async function refresh() {
 
     if (error.status === 403) {
       message(
-        "رفض Google الوصول. تحقق من تفعيل Drive API " +
-        "والصلاحية وحساب المستخدم التجريبي، ثم أعد الربط."
-      );
-    } else {
+if (error.status === 403) {
+  message("سبب رفض Google: " + error.message);
+} else {
       message(
         "لم يكتمل التحديث؛ النتائج السابقة قد تكون قديمة. " +
         error.message
