@@ -7,12 +7,26 @@ export async function loadFiles(
   progress = () => {},
   request = fetch
 ) {
-  async function get(path, params) {
+  const files = new Map();
+  let pageToken = "";
+
+  do {
     const url = new URL(
-      `https://www.googleapis.com/drive/v3/${path}`
+      "https://www.googleapis.com/drive/v3/files"
     );
 
-    url.search = new URLSearchParams(params);
+    url.search = new URLSearchParams({
+      q: "trashed = false",
+      spaces: "drive",
+      corpora: "allDrives",
+      pageSize: "1000",
+      supportsAllDrives: "true",
+      includeItemsFromAllDrives: "true",
+      fields:
+        "nextPageToken,incompleteSearch," +
+        "files(id,name,mimeType,webViewLink,modifiedTime,resourceKey)",
+      ...(pageToken ? { pageToken } : {})
+    });
 
     const response = await request(url, {
       method: "GET",
@@ -33,64 +47,20 @@ export async function loadFiles(
       throw error;
     }
 
-    return response.json();
-  }
+    const data = await response.json();
 
-  const files = new Map();
-
-  async function collect(extra) {
-    let pageToken = "";
-
-    do {
-      const data = await get("files", {
-        q: "trashed = false",
-        spaces: "drive",
-        pageSize: "1000",
-        fields:
-          "nextPageToken,incompleteSearch," +
-          "files(id,name,mimeType,webViewLink,modifiedTime,resourceKey)",
-        supportsAllDrives: "true",
-        includeItemsFromAllDrives: "true",
-        ...extra,
-        ...(pageToken ? { pageToken } : {})
-      });
-
-      if (data.incompleteSearch) {
-        throw new Error(
-          "البحث غير مكتمل من Google. أعد التحديث."
-        );
-      }
-
-      for (const file of data.files || []) {
-        files.set(file.id, file);
-      }
-
-      progress(files.size);
-      pageToken = data.nextPageToken;
-    } while (pageToken);
-  }
-
-  await collect({
-    corpora: "user"
-  });
-
-  // قراءة كل مساحة Drive مشتركة على حدة.
-  let pageToken = "";
-
-  do {
-    const data = await get("drives", {
-      pageSize: "100",
-      fields: "nextPageToken,drives(id)",
-      ...(pageToken ? { pageToken } : {})
-    });
-
-    for (const drive of data.drives || []) {
-      await collect({
-        corpora: "drive",
-        driveId: drive.id
-      });
+    if (data.incompleteSearch) {
+      throw new Error(
+        "أبلغ Google أن البحث لم يشمل جميع مساحات Drive. " +
+        "لم تُعتمد النتائج الناقصة. أعد التحديث."
+      );
     }
 
+    for (const file of data.files || []) {
+      files.set(file.id, file);
+    }
+
+    progress(files.size);
     pageToken = data.nextPageToken;
   } while (pageToken);
 
