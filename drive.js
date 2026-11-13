@@ -791,3 +791,151 @@ if (typeof document !== "undefined") {
     setup();
   }
 }
+// إصلاح البحث العام وتداخل القائمة الجانبية.
+if (typeof document !== "undefined") {
+  const repairStyle = document.createElement("style");
+
+  repairStyle.textContent = `
+    @media (min-width: 801px) {
+      aside {
+        display: block !important;
+        height: 100dvh;
+        overflow-y: auto !important;
+        overflow-x: hidden;
+      }
+
+      #mainFolders {
+        min-height: auto !important;
+        margin-top: 24px;
+      }
+
+      .root-folder-buttons {
+        display: flex;
+        flex-direction: column;
+        gap: 7px;
+      }
+
+      .root-folder-buttons button {
+        display: block;
+        flex-shrink: 0;
+        width: 100%;
+        height: auto;
+        min-height: 42px;
+        white-space: normal;
+        overflow-wrap: anywhere;
+        line-height: 1.8;
+        padding: 10px 14px;
+        text-align: right;
+      }
+
+      .folder-heading {
+        line-height: 1.8;
+        margin-bottom: 12px;
+      }
+
+      .side-bottom {
+        margin-top: 28px !important;
+        padding-top: 18px;
+        padding-bottom: 20px;
+        clear: both;
+      }
+
+      .side-bottom button {
+        white-space: normal;
+        line-height: 1.8;
+      }
+
+      .side-note {
+        line-height: 2;
+        overflow-wrap: anywhere;
+      }
+    }
+
+    @media (max-width: 800px) {
+      aside {
+        display: flex !important;
+        flex-direction: column;
+        height: auto !important;
+        max-height: 35dvh;
+        overflow-y: auto !important;
+        overflow-x: hidden;
+      }
+
+      #filters,
+      #mainFolders {
+        width: 100%;
+        flex-shrink: 0;
+      }
+
+      .root-folder-buttons {
+        flex-direction: row;
+        overflow-x: auto;
+        gap: 6px;
+        padding-bottom: 3px;
+      }
+
+      .root-folder-buttons button {
+        flex-shrink: 0;
+        width: auto;
+        white-space: nowrap;
+        line-height: 1.8;
+      }
+
+      main {
+        padding-bottom:
+          calc(165px + env(safe-area-inset-bottom)) !important;
+      }
+    }
+  `;
+
+  document.head.append(repairStyle);
+
+  const enableGlobalSearch = () => {
+    const input = document.getElementById("searchInput");
+
+    if (!input) {
+      return;
+    }
+
+    input.addEventListener("input", () => {
+      // الكتابة تعيد البحث إلى جميع الملفات.
+      selectedFolder = "";
+
+      document.querySelectorAll(
+        "#mainFolders button[data-folder-id]"
+      ).forEach((button) => {
+        const active = button.dataset.folderId === "";
+
+        button.classList.toggle("active", active);
+
+        button.setAttribute(
+          "aria-pressed",
+          String(active)
+        );
+      });
+
+      const allFiles = document.querySelector(
+        "#filters button"
+      );
+
+      if (
+        allFiles &&
+        allFiles.getAttribute("aria-pressed") !== "true"
+      ) {
+        allFiles.click();
+      }
+
+      scheduleVisibility();
+    }, true);
+  };
+
+  if (document.readyState === "loading") {
+    document.addEventListener(
+      "DOMContentLoaded",
+      enableGlobalSearch,
+      { once: true }
+    );
+  } else {
+    enableGlobalSearch();
+  }
+}
