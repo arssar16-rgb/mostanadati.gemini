@@ -40,7 +40,7 @@ function storageGet() {
   }
 }
 
-$("clientId").value = storageGet();
+$("clientId").value = "687986165006-gfhpkkfkbsuvk4rfuo1pivs9d1vgmnpl.apps.googleusercontent.com";
 
 function reset() {
   authGeneration++;
